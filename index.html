@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BreakTime — Childcare Break Scheduler</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --p:#0d9488;--p-light:#f0fdfa;--p-mid:#99f6e4;--p-dark:#0f766e;
+  --accent:#f59e0b;--danger:#ef4444;--success:#22c55e;
+  --bg:#f8fafc;--surface:#fff;--border:#e2e8f0;--border-d:#cbd5e1;
+  --text:#0f172a;--muted:#64748b;
+  --r:8px;--rl:12px;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  --shadow-m:0 4px 12px rgba(0,0,0,.1),0 2px 4px rgba(0,0,0,.06);
+}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border-d);border-radius:3px}
+
+/* HEADER */
+.hdr{background:var(--p);color:#fff;padding:0 24px;display:flex;align-items:center;gap:24px;height:54px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.logo{font-size:19px;font-weight:700;letter-spacing:-.5px;flex-shrink:0;white-space:nowrap}
+.logo span{opacity:.65;font-weight:400}
+.nav{display:flex;gap:3px;flex:1}
+.nb{background:none;border:none;color:rgba(255,255,255,.72);padding:6px 13px;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.nb:hover{background:rgba(255,255,255,.15);color:#fff}
+.nb.active{background:rgba(255,255,255,.22);color:#fff}
+.sb{background:none;border:none;color:rgba(255,255,255,.72);cursor:pointer;padding:5px 8px;border-radius:var(--r);font-size:16px;line-height:1;margin-left:auto;transition:all .15s}
+.sb:hover{background:rgba(255,255,255,.15);color:#fff}
+
+/* LAYOUT */
+.main{max-width:1280px;margin:0 auto;padding:24px}
+.panel{display:none}.panel.active{display:block}
+
+/* PAGE HEADER */
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap}
+.pt{font-size:20px;font-weight:600}
+.ps{color:var(--muted);font-size:13px;margin-top:2px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r);border:1px solid transparent;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;line-height:1.4;white-space:nowrap}
+.btn-p{background:var(--p);color:#fff}.btn-p:hover{background:var(--p-dark)}
+.btn-s{background:var(--surface);color:var(--text);border-color:var(--border-d)}.btn-s:hover{background:var(--bg)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:#dc2626}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-ic{padding:5px 7px;min-width:30px;justify-content:center}
+.btn-ac{background:var(--accent);color:#fff;border-color:transparent}.btn-ac:hover{background:#d97706}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px;box-shadow:var(--shadow)}
+.g2{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+
+/* ROOM CARDS */
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px 18px;box-shadow:var(--shadow)}
+.rch{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px}
+.rn{font-size:16px;font-weight:600}
+.ra{display:flex;gap:4px}
+.sv{font-size:26px;font-weight:700;color:var(--p);line-height:1}
+.sl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;margin-top:12px}
+.b1{background:#dbeafe;color:#1d4ed8}.b2{background:#fef3c7;color:#92400e}
+
+/* STAFF CARDS */
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
+.sch{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--border)}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex-shrink:0}
+.sn{font-weight:600;font-size:15px}
+.sh{font-size:11px;color:var(--muted)}
+.ss{padding:10px 15px}
+.dr{display:flex;align-items:center;gap:8px;padding:3px 0}
+.dl{width:28px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase}
+.dt{font-size:12px;font-variant-numeric:tabular-nums}
+.do{font-size:12px;color:var(--muted);font-style:italic}
+
+/* SCHEDULE */
+.sched-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.dtabs{display:flex;gap:3px;background:var(--surface);padding:3px;border-radius:var(--r);border:1px solid var(--border)}
+.dtab{padding:6px 14px;border-radius:6px;border:none;background:none;font-size:13px;font-weight:500;cursor:pointer;color:var(--muted);transition:all .15s}
+.dtab:hover{color:var(--text);background:var(--bg)}
+.dtab.active{background:var(--p);color:#fff}
+
+/* ASSIGNMENTS */
+.ag{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:11px;margin-bottom:20px}
+.acard{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:13px}
+.arn{font-weight:600;font-size:14px;margin-bottom:3px}
+.ari{font-size:12px;color:var(--muted);margin-bottom:9px}
+.asl{display:flex;flex-direction:column;gap:5px}
+.asi{display:flex;align-items:center;gap:6px;background:var(--bg);border-radius:6px;padding:5px 8px}
+.asd{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.asn{font-size:12px;flex:1}
+.arm{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0 2px;line-height:1}
+.arm:hover{color:var(--danger)}
+.aadd{display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px dashed var(--border-d);border-radius:6px;cursor:pointer;font-size:12px;color:var(--muted);background:none;width:100%;transition:all .15s}
+.aadd:hover{border-color:var(--p);color:var(--p)}
+
+/* TIMELINE */
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow);margin-bottom:14px}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tinner{position:relative}
+.thdr{display:flex;border-bottom:1px solid var(--border);background:var(--bg)}
+.tlc{width:148px;flex-shrink:0;padding:8px 11px;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-right:1px solid var(--border)}
+.ths{position:relative;height:30px}
+.hl{position:absolute;font-size:10px;color:var(--muted);transform:translateX(-50%);top:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tbody{}
+.trow{display:flex;border-bottom:1px solid var(--border);position:relative;min-height:50px}
+.trow:last-child{border-bottom:none}
+.tname{width:148px;flex-shrink:0;padding:7px 11px;border-right:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.tnd{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tnt{font-size:13px;font-weight:500;line-height:1.3}
+.tnr{font-size:10px;color:var(--muted)}
+.ttrack{flex:1;position:relative}
+.tgrid{position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,transparent,transparent calc(var(--hw) - 1px),var(--border) calc(var(--hw) - 1px),var(--border) var(--hw));pointer-events:none}
+.sbar{position:absolute;top:10px;height:30px;border-radius:5px;opacity:.2}
+.bbar{position:absolute;top:7px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:grab;user-select:none;z-index:10;transition:box-shadow .1s;border:2px solid rgba(255,255,255,.5)}
+.bbar:hover{box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:15}
+.bbar.dragging{cursor:grabbing;box-shadow:0 6px 20px rgba(0,0,0,.3);z-index:20;opacity:.9}
+.bbar.invalid{outline:2px solid var(--danger);box-shadow:0 0 0 4px rgba(239,68,68,.2)}
+.nbmsg{position:absolute;top:50%;left:10px;transform:translateY(-50%);font-size:11px;color:var(--muted);font-style:italic}
+.drag-tooltip{position:fixed;background:var(--text);color:#fff;font-size:11px;padding:4px 8px;border-radius:5px;pointer-events:none;z-index:9999;white-space:nowrap;display:none}
+
+/* BREAK INFO */
+.bip{background:var(--p-light);border:1px solid var(--p-mid);border-radius:var(--r);padding:11px 15px;margin-top:10px}
+.bit{font-size:12px;font-weight:600;color:var(--p-dark);margin-bottom:7px;text-transform:uppercase;letter-spacing:.5px}
+.bir{display:flex;gap:7px;flex-wrap:wrap}
+.bchip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#fff;border:1px solid var(--p-mid);border-radius:999px;font-size:12px}
+
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:16px}
+.mo.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--rl);padding:24px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-m);position:relative}
+.mtt{font-size:18px;font-weight:600;margin-bottom:18px}
+.mc{position:absolute;top:14px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px;line-height:1;border-radius:4px}
+.mc:hover{color:var(--text);background:var(--bg)}
+
+/* FORMS */
+.fg{margin-bottom:15px}
+.fl{display:block;font-size:13px;font-weight:500;margin-bottom:5px}
+.fi{width:100%;padding:8px 11px;border:1px solid var(--border-d);border-radius:var(--r);font-size:14px;color:var(--text);background:var(--surface);transition:border-color .15s;font-family:inherit}
+.fi:focus{outline:none;border-color:var(--p);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+.fh{font-size:12px;color:var(--muted);margin-top:4px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.fa{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* WEEK GRID */
+.wg{border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.wr{display:grid;grid-template-columns:80px 1fr 1fr 60px;gap:8px;padding:8px 12px;align-items:center;border-bottom:1px solid var(--border)}
+.wr:last-child{border-bottom:none}
+.wrh{background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+.wr:hover:not(.wrh){background:var(--bg)}
+.wdn{font-size:13px;font-weight:500}
+.wi{padding:5px 8px;border:1px solid var(--border-d);border-radius:6px;font-size:13px;width:100%;font-family:inherit;color:var(--text)}
+.wi:focus{outline:none;border-color:var(--p)}
+.wi:disabled{background:var(--bg);color:var(--muted);border-color:var(--border)}
+
+/* TOGGLE */
+.tog{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.ts{position:absolute;inset:0;background:var(--border-d);border-radius:10px;cursor:pointer;transition:background .2s}
+.ts::before{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog input:checked+.ts{background:var(--p)}
+.tog input:checked+.ts::before{transform:translateX(16px)}
+
+/* COLOR SWATCHES */
+.cos{display:flex;gap:7px;flex-wrap:wrap;margin-top:5px}
+.csw{width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .12s;position:relative}
+.csw.sel{border-color:var(--text)}
+.csw:hover{transform:scale(1.1)}
+
+/* ALERT */
+.alert{padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px}
+.a-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.a-warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.a-err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+
+/* EMPTY STATE */
+.es{text-align:center;padding:48px 24px;color:var(--muted)}
+.es-i{font-size:40px;margin-bottom:12px}
+.es-t{font-size:15px;font-weight:500;color:var(--text);margin-bottom:4px}
+.es-s{font-size:13px}
+
+/* SECTION LABEL */
+.sec-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+
+/* UNSCHEDULED WARNING */
+.unsched-warn{background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:10px 14px;font-size:12px;color:#92400e;margin-top:8px}
+
+@media(max-width:640px){
+  .main{padding:14px}
+  .hdr{padding:0 14px;gap:12px}
+  .g2,.g3{grid-template-columns:1fr}
+  .fr{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="logo">Break<span>Time</span> ☕</div>
+  <nav class="nav">
+    <button class="nb active" onclick="showTab('rooms')">Rooms</button>
+    <button class="nb" onclick="showTab('staff')">Staff</button>
+    <button class="nb" onclick="showTab('schedule')">Schedule</button>
+  </nav>
+  <button class="sb" onclick="openSettings()" title="Settings">⚙</button>
+</header>
+
+<main class="main">
+
+  <!-- ROOMS -->
+  <div class="panel active" id="panel-rooms">
+    <div class="ph">
+      <div><div class="pt">Rooms</div><div class="ps">Configure rooms and child counts to determine staffing requirements</div></div>
+      <button class="btn btn-p" onclick="openRoomModal()">+ Add Room</button>
+    </div>
+    <div class="g2" id="rooms-grid"></div>
+    <div class="es" id="rooms-empty" style="display:none">
+      <div class="es-i">🏠</div>
+      <div class="es-t">No rooms configured</div>
+      <div class="es-s">Add your childcare rooms to get started</div>
+    </div>
+  </div>
+
+  <!-- STAFF -->
+  <div class="panel" id="panel-staff">
+    <div class="ph">
+      <div><div class="pt">Staff</div><div class="ps">Manage staff members and their weekly working schedules</div></div>
+      <button class="btn btn-p" onclick="openStaffModal()">+ Add Staff Member</button>
+    </div>
+    <div class="g2" id="staff-grid"></div>
+    <div class="es" id="staff-empty" style="display:none">
+      <div class="es-i">👩‍🏫</div>
+      <div class="es-t">No staff added yet</div>
+      <div class="es-s">Add staff members to start scheduling their breaks</div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="panel" id="panel-schedule">
+    <div class="sched-hdr">
+      <div><div class="pt">Schedule</div><div class="ps">Assign staff to rooms, then auto-generate or drag breaks to adjust</div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="dtabs" id="day-tabs"></div>
+        <button class="btn btn-ac" onclick="autoSchedule()">⚡ Auto-Schedule</button>
+        <button class="btn btn-s btn-sm" onclick="clearBreaks()">Clear Breaks</button>
+      </div>
+    </div>
+
+    <div class="sec-lbl">Room Assignments</div>
+    <div class="ag" id="assignments-grid"></div>
+
+    <div class="sec-lbl" style="margin-top:4px">Daily Timeline</div>
+    <div class="tw">
+      <div class="tscroll">
+        <div class="tinner" id="tinner">
+          <div class="thdr">
+            <div class="tlc">Staff</div>
+            <div class="ths" id="t-hours"></div>
+          </div>
+          <div class="tbody" id="t-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bip" id="break-info" style="display:none">
+      <div class="bit">Scheduled Breaks</div>
+      <div class="bir" id="break-chips"></div>
+    </div>
+    <div id="unscheduled-warn" class="unsched-warn" style="display:none"></div>
+
+    <div class="es" id="sched-empty" style="display:none">
+      <div class="es-i">📅</div>
+      <div class="es-t">No staff working this day</div>
+      <div class="es-s">Go to Staff and enable this day in their schedule</div>
+    </div>
+  </div>
+
+</main>
+
+<div class="drag-tooltip" id="drag-tooltip"></div>
+
+<!-- ROOM MODAL -->
+<div class="mo" id="room-modal">
+  <div class="modal">
+    <button class="mc" onclick="closeModal('room-modal')">✕</button>
+    <div class="mtt" id="rm-title">Add Room</div>
+    <input type="hidden" id="rm-id">
+    <div class="fg"><label class="fl">Room name</label><input type="text" class="fi" id="rm-name" placeholder="e.g. Nursery, Toddlers, Preschool…"></div>
+    <div class="fg"><label class="fl">Number of children</label><input type="number" class="fi" id="rm-children" min="0" max="50" placeholder="e.g. 10"><div class="fh" id="rm-preview"></div></div>
+    <div class="fa"><button class="btn btn-s" onclick="closeModal('room-modal')">Cancel</button><button class="btn btn-p" onclick="saveRoom()">Save Room</button></div>
+  </div>
+</div>
+
+<!-- STAFF MODAL -->
+<div class="mo" id="staff-modal">
+  <div class="modal">
+    <button class="mc" onclick="closeModal('staff-modal')">✕</button>
+    <div class="mtt" id="sm-title">Add Staff Member</div>
+    <input type="hidden" id="sm-id">
+    <div class="fg"><label class="fl">Name</label><input type="text" class="fi" id="sm-name" placeholder="Full name"></div>
+    <div class="fg"><label class="fl">Colour</label><div class="cos" id="color-opts"></div><input type="hidden" id="sm-color"></div>
+    <div class="fg">
+      <label class="fl">Weekly schedule</label>
+      <div class="wg">
+        <div class="wr wrh"><div>Day</div><div>Start</div><div>Finish</div><div>On</div></div>
+        <div id="week-rows"></div>
+      </div>
+    </div>
+    <div class="fa"><button class="btn btn-s" onclick="closeModal('staff-modal')">Cancel</button><button class="btn btn-p" onclick="saveStaff()">Save</button></div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="mo" id="settings-modal">
+  <div class="modal">
+    <button class="mc" onclick="closeModal('settings-modal')">✕</button>
+    <div class="mtt">Settings</div>
+    <div class="fg"><label class="fl">Break duration (minutes)</label><input type="number" class="fi" id="cfg-dur" min="10" max="90" step="5"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Minimum time after shift start before break can begin (mins)</label><input type="number" class="fi" id="cfg-after" min="15" max="300" step="15"></div>
+      <div class="fg"><label class="fl">Minimum time before shift end that break must finish (mins)</label><input type="number" class="fi" id="cfg-before" min="15" max="300" step="15"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Child count threshold for 2 adults</label>
+      <input type="number" class="fi" id="cfg-thresh" min="1" max="40">
+      <div class="fh">Rooms with <em>more than</em> this many children require 2 adults on duty; rooms at or below this count need 1 adult.</div>
+    </div>
+    <div class="fa"><button class="btn btn-s" onclick="closeModal('settings-modal')">Cancel</button><button class="btn btn-p" onclick="saveSettings()">Save Settings</button></div>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div class="mo" id="assign-modal">
+  <div class="modal">
+    <button class="mc" onclick="closeModal('assign-modal')">✕</button>
+    <div class="mtt" id="am-title">Assign Staff to Room</div>
+    <div id="am-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    <div class="fa"><button class="btn btn-s" onclick="closeModal('assign-modal')">Done</button></div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────────────
+const DAYS = ['mon','tue','wed','thu','fri'];
+const DLONG = {mon:'Monday',tue:'Tuesday',wed:'Wednesday',thu:'Thursday',fri:'Friday'};
+const DSHORT = {mon:'Mon',tue:'Tue',wed:'Wed',thu:'Thu',fri:'Fri'};
+const COLORS = ['#0d9488','#7c3aed','#db2777','#d97706','#0ea5e9','#65a30d','#e11d48','#9333ea','#0891b2','#c2410c','#84cc16','#f97316'];
+
+const TL_START = 6*60;   // 6 am in minutes
+const TL_END   = 20*60;  // 8 pm
+const TL_DUR   = TL_END - TL_START;
+const HW       = 80;     // px per hour
+const TL_W     = (TL_DUR/60)*HW;
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let S = {
+  rooms:[],
+  staff:[],
+  assignments:{mon:{},tue:{},wed:{},thu:{},fri:{}},
+  breaks:{mon:{},tue:{},wed:{},thu:{},fri:{}},
+  config:{breakDuration:30,minAfterStart:90,minBeforeEnd:90,highChildThreshold:8},
+  day:'mon'
+};
+
+function persist(){try{localStorage.setItem('bt2',JSON.stringify(S))}catch(e){}}
+function loadPersist(){
+  try{
+    const d=localStorage.getItem('bt2');
+    if(d){
+      const p=JSON.parse(d);
+      S={...S,...p};
+      DAYS.forEach(d=>{
+        if(!S.assignments[d])S.assignments[d]={};
+        if(!S.breaks[d])S.breaks[d]={};
+      });
+    }
+  }catch(e){}
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+function t2m(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);return h*60+m}
+function m2t(m){const h=Math.floor(m/60),mn=m%60;return`${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`}
+function m2disp(m){const h=Math.floor(m/60),mn=m%60,am=h<12?'am':'pm',h12=h===0?12:h>12?h-12:h;return`${h12}:${String(mn).padStart(2,'0')}${am}`}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function reqAdults(roomId){
+  const r=S.rooms.find(x=>x.id===roomId);
+  if(!r)return 1;
+  return r.childCount>S.config.highChildThreshold?2:1;
+}
+function staffColor(id){const s=S.staff.find(x=>x.id===id);return s?s.color:'#64748b'}
+function staffName(id){const s=S.staff.find(x=>x.id===id);return s?s.name:'?'}
+function workingStaff(day){return S.staff.filter(s=>{const sc=s.schedule[day];return sc&&sc.active&&sc.start&&sc.end})}
+function staffRoom(sid,day){
+  for(const[rid,sids]of Object.entries(S.assignments[day]||{})){
+    if(sids.includes(sid))return rid;
+  }
+  return null;
+}
+function px2min(px){return TL_START+(px/TL_W)*TL_DUR}
+function min2px(m){return((m-TL_START)/TL_DUR)*TL_W}
+
+// ── TABS ───────────────────────────────────────────────────────────────────
+function showTab(tab){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  document.querySelectorAll('.nb').forEach(b=>{
+    if(b.textContent.toLowerCase().includes(tab.toLowerCase()))b.classList.add('active');
+  });
+  if(tab==='schedule')renderSchedule();
+}
+
+// ── MODALS ─────────────────────────────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.mo').forEach(el=>el.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')}));
+
+// ── ROOMS ──────────────────────────────────────────────────────────────────
+function renderRooms(){
+  const g=document.getElementById('rooms-grid'),e=document.getElementById('rooms-empty');
+  if(!S.rooms.length){g.innerHTML='';e.style.display='block';return}
+  e.style.display='none';
+  g.innerHTML=S.rooms.map(r=>{
+    const req=r.childCount>S.config.highChildThreshold?2:1;
+    return`<div class="rc">
+      <div class="rch">
+        <div class="rn">${r.name}</div>
+        <div class="ra">
+          <button class="btn btn-s btn-sm btn-ic" onclick="openRoomModal('${r.id}')" title="Edit">✏</button>
+          <button class="btn btn-d btn-sm btn-ic" onclick="deleteRoom('${r.id}')" title="Delete">✕</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:20px">
+        <div><div class="sv">${r.childCount}</div><div class="sl">Children</div></div>
+        <div><div class="sv" style="color:${req===2?'#d97706':S.config.highChildThreshold>=r.childCount?'var(--p)':'var(--p)'}">${req}</div><div class="sl">Adults req.</div></div>
+      </div>
+      <span class="badge ${req===2?'b2':'b1'}">${req===2?'👥 2 adults required':'👤 1 adult required'}</span>
+    </div>`;
+  }).join('');
+}
+
+function openRoomModal(id){
+  const r=id?S.rooms.find(x=>x.id===id):null;
+  document.getElementById('rm-title').textContent=r?'Edit Room':'Add Room';
+  document.getElementById('rm-id').value=r?r.id:'';
+  document.getElementById('rm-name').value=r?r.name:'';
+  document.getElementById('rm-children').value=r?r.childCount:'';
+  updateRmPreview();
+  openModal('room-modal');
+  setTimeout(()=>document.getElementById('rm-name').focus(),100);
+}
+
+function updateRmPreview(){
+  const n=parseInt(document.getElementById('rm-children').value)||0;
+  const req=n>S.config.highChildThreshold?2:1;
+  const el=document.getElementById('rm-preview');
+  el.textContent=n>0?`→ ${req} adult${req>1?'s':''} required`:'';
+  el.style.color=req===2?'#92400e':'#1d4ed8';
+}
+document.getElementById('rm-children').addEventListener('input',updateRmPreview);
+
+function saveRoom(){
+  const id=document.getElementById('rm-id').value;
+  const name=document.getElementById('rm-name').value.trim();
+  const childCount=parseInt(document.getElementById('rm-children').value)||0;
+  if(!name){alert('Please enter a room name.');return}
+  if(id){const i=S.rooms.findIndex(r=>r.id===id);S.rooms[i]={id,name,childCount}}
+  else S.rooms.push({id:uid(),name,childCount});
+  closeModal('room-modal');persist();renderRooms();
+}
+
+function deleteRoom(id){
+  if(!confirm('Delete this room? Room assignments will also be removed.'))return;
+  S.rooms=S.rooms.filter(r=>r.id!==id);
+  DAYS.forEach(d=>{delete S.assignments[d][id]});
+  persist();renderRooms();
+}
+
+// ── STAFF ──────────────────────────────────────────────────────────────────
+function renderStaff(){
+  const g=document.getElementById('staff-grid'),e=document.getElementById('staff-empty');
+  if(!S.staff.length){g.innerHTML='';e.style.display='block';return}
+  e.style.display='none';
+  g.innerHTML=S.staff.map(s=>{
+    const ini=s.name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+    const days=DAYS.filter(d=>s.schedule[d]&&s.schedule[d].active);
+    const hrs=days.reduce((sum,d)=>{const sc=s.schedule[d];return sc.start&&sc.end?sum+(t2m(sc.end)-t2m(sc.start))/60:sum},0);
+    return`<div class="sc">
+      <div class="sch">
+        <div class="av" style="background:${s.color}">${ini}</div>
+        <div style="flex:1"><div class="sn">${s.name}</div><div class="sh">${days.length} day${days.length!==1?'s':''} · ${hrs.toFixed(1)}h/week</div></div>
+        <div style="display:flex;gap:4px;margin-left:8px">
+          <button class="btn btn-s btn-sm btn-ic" onclick="openStaffModal('${s.id}')">✏</button>
+          <button class="btn btn-d btn-sm btn-ic" onclick="deleteStaff('${s.id}')">✕</button>
+        </div>
+      </div>
+      <div class="ss">${DAYS.map(d=>{
+        const sc=s.schedule[d];
+        const on=sc&&sc.active;
+        return`<div class="dr"><div class="dl">${DSHORT[d]}</div>${on&&sc.start&&sc.end?`<div class="dt">${sc.start} – ${sc.end}</div>`:'<div class="do">Off</div>'}</div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function openStaffModal(id){
+  const s=id?S.staff.find(x=>x.id===id):null;
+  document.getElementById('sm-title').textContent=s?'Edit Staff Member':'Add Staff Member';
+  document.getElementById('sm-id').value=s?s.id:'';
+  document.getElementById('sm-name').value=s?s.name:'';
+  const sel=s?s.color:COLORS[S.staff.length%COLORS.length];
+  document.getElementById('sm-color').value=sel;
+  document.getElementById('color-opts').innerHTML=COLORS.map(c=>`<div class="csw${c===sel?' sel':''}" style="background:${c}" onclick="pickColor('${c}')"></div>`).join('');
+  const def={active:false,start:'08:00',end:'16:00'};
+  document.getElementById('week-rows').innerHTML=DAYS.map(d=>{
+    const sc=s?s.schedule[d]:def;
+    const on=sc&&sc.active;
+    return`<div class="wr">
+      <div class="wdn">${DLONG[d]}</div>
+      <input type="time" class="wi" id="ws-${d}-s" value="${sc?sc.start:'08:00'}" ${!on?'disabled':''}>
+      <input type="time" class="wi" id="ws-${d}-e" value="${sc?sc.end:'16:00'}" ${!on?'disabled':''}>
+      <label class="tog"><input type="checkbox" id="wt-${d}" ${on?'checked':''} onchange="toggleWDay('${d}',this.checked)"><span class="ts"></span></label>
+    </div>`;
+  }).join('');
+  openModal('staff-modal');
+  setTimeout(()=>document.getElementById('sm-name').focus(),100);
+}
+
+function pickColor(c){
+  document.getElementById('sm-color').value=c;
+  document.querySelectorAll('.csw').forEach(el=>el.classList.toggle('sel',el.style.background===c||el.style.backgroundColor===c));
+}
+
+function toggleWDay(day,on){
+  document.getElementById(`ws-${day}-s`).disabled=!on;
+  document.getElementById(`ws-${day}-e`).disabled=!on;
+}
+
+function saveStaff(){
+  const id=document.getElementById('sm-id').value;
+  const name=document.getElementById('sm-name').value.trim();
+  const color=document.getElementById('sm-color').value||COLORS[0];
+  if(!name){alert('Please enter a name.');return}
+  const schedule={};
+  DAYS.forEach(d=>{
+    const active=document.getElementById(`wt-${d}`).checked;
+    schedule[d]={active,start:document.getElementById(`ws-${d}-s`).value,end:document.getElementById(`ws-${d}-e`).value};
+  });
+  if(id){const i=S.staff.findIndex(x=>x.id===id);S.staff[i]={id,name,color,schedule}}
+  else S.staff.push({id:uid(),name,color,schedule});
+  closeModal('staff-modal');persist();renderStaff();
+}
+
+function deleteStaff(id){
+  if(!confirm('Remove this staff member?'))return;
+  S.staff=S.staff.filter(s=>s.id!==id);
+  DAYS.forEach(d=>{
+    Object.keys(S.assignments[d]).forEach(rid=>{S.assignments[d][rid]=S.assignments[d][rid].filter(s=>s!==id)});
+    delete S.breaks[d][id];
+  });
+  persist();renderStaff();
+}
+
+// ── SETTINGS ───────────────────────────────────────────────────────────────
+function openSettings(){
+  document.getElementById('cfg-dur').value=S.config.breakDuration;
+  document.getElementById('cfg-after').value=S.config.minAfterStart;
+  document.getElementById('cfg-before').value=S.config.minBeforeEnd;
+  document.getElementById('cfg-thresh').value=S.config.highChildThreshold;
+  openModal('settings-modal');
+}
+function saveSettings(){
+  S.config.breakDuration=Math.max(10,parseInt(document.getElementById('cfg-dur').value)||30);
+  S.config.minAfterStart=Math.max(15,parseInt(document.getElementById('cfg-after').value)||90);
+  S.config.minBeforeEnd=Math.max(15,parseInt(document.getElementById('cfg-before').value)||90);
+  S.config.highChildThreshold=Math.max(1,parseInt(document.getElementById('cfg-thresh').value)||8);
+  closeModal('settings-modal');persist();renderRooms();renderSchedule();
+}
+
+// ── ASSIGNMENTS ────────────────────────────────────────────────────────────
+function renderAssignments(){
+  const day=S.day;
+  const el=document.getElementById('assignments-grid');
+  if(!S.rooms.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;font-style:italic">Add rooms first</div>';return}
+  el.innerHTML=S.rooms.map(room=>{
+    const assigned=S.assignments[day][room.id]||[];
+    const req=reqAdults(room.id);
+    const ok=assigned.length>=req;
+    const col=ok?'var(--success)':assigned.length>0?'var(--accent)':'var(--muted)';
+    return`<div class="acard">
+      <div class="arn">${room.name}</div>
+      <div class="ari" style="color:${col}">${assigned.length}/${req} adult${req>1?'s':''} assigned · ${room.childCount} children</div>
+      <div class="asl">
+        ${assigned.map(sid=>{const s=S.staff.find(x=>x.id===sid);if(!s)return'';return`<div class="asi"><div class="asd" style="background:${s.color}"></div><div class="asn">${s.name}</div><button class="arm" onclick="removeAssign('${room.id}','${sid}')">✕</button></div>`;}).join('')}
+        <button class="aadd" onclick="openAssignModal('${room.id}')">+ Assign staff</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function removeAssign(roomId,sid){
+  const day=S.day;
+  if(S.assignments[day][roomId])S.assignments[day][roomId]=S.assignments[day][roomId].filter(x=>x!==sid);
+  persist();renderSchedule();
+}
+
+let assignRoom=null;
+function openAssignModal(roomId){
+  assignRoom=roomId;
+  const day=S.day,room=S.rooms.find(r=>r.id===roomId);
+  document.getElementById('am-title').textContent=`Assign staff to ${room.name}`;
+  const working=workingStaff(day);
+  const assigned=S.assignments[day][roomId]||[];
+  const el=document.getElementById('am-list');
+  if(!working.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;font-style:italic">No staff working on this day</div>';openModal('assign-modal');return}
+  el.innerHTML=working.map(s=>{
+    const isOn=assigned.includes(s.id);
+    const sc=s.schedule[day];
+    const otherRoomId=Object.entries(S.assignments[day]).find(([rid,sids])=>rid!==roomId&&sids.includes(s.id));
+    const otherRoomName=otherRoomId?S.rooms.find(r=>r.id===otherRoomId[0])?.name:'';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid ${isOn?'var(--p)':'var(--border)'};border-radius:var(--r);background:${isOn?'var(--p-light)':''}">
+      <div style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${s.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${sc.start} – ${sc.end}${otherRoomName?' · also in '+otherRoomName:''}</div>
+      </div>
+      <button class="btn btn-sm ${isOn?'btn-d':'btn-p'}" onclick="${isOn?`doRemoveAssign('${roomId}','${s.id}')`:` doAddAssign('${roomId}','${s.id}')`}">${isOn?'Remove':'Assign'}</button>
+    </div>`;
+  }).join('');
+  openModal('assign-modal');
+}
+
+function doAddAssign(roomId,sid){
+  const day=S.day;
+  if(!S.assignments[day][roomId])S.assignments[day][roomId]=[];
+  if(!S.assignments[day][roomId].includes(sid))S.assignments[day][roomId].push(sid);
+  persist();openAssignModal(roomId);renderAssignments();renderTimeline();
+}
+function doRemoveAssign(roomId,sid){
+  const day=S.day;
+  if(S.assignments[day][roomId])S.assignments[day][roomId]=S.assignments[day][roomId].filter(x=>x!==sid);
+  persist();openAssignModal(roomId);renderAssignments();renderTimeline();
+}
+
+// ── BREAK SCHEDULING ALGORITHM ─────────────────────────────────────────────
+function breakValid(sid,bStart,bDur,day,tentative){
+  const rid=staffRoom(sid,day);
+  if(!rid)return true;
+  const req=reqAdults(rid);
+  const roomStaff=S.assignments[day][rid]||[];
+  const bEnd=bStart+bDur;
+  let avail=0;
+  for(const rsid of roomStaff){
+    if(rsid===sid)continue;
+    const tb=tentative[rsid];
+    if(!tb){avail++;continue}
+    const overlaps=tb.start<bEnd&&tb.end>bStart;
+    if(!overlaps)avail++;
+  }
+  return avail>=req;
+}
+
+function findSlot(sid,shiftStart,shiftEnd,day,tentative){
+  const dur=S.config.breakDuration;
+  const earliest=shiftStart+S.config.minAfterStart;
+  const latest=shiftEnd-S.config.minBeforeEnd-dur;
+  if(earliest>latest)return null;
+  const mid=Math.round((earliest+latest)/2/15)*15;
+  const candidates=[mid];
+  for(let off=15;off<=(latest-earliest+60);off+=15){
+    if(mid-off>=earliest)candidates.push(mid-off);
+    if(mid+off<=latest)candidates.push(mid+off);
+  }
+  for(const c of candidates){
+    if(c<earliest||c>latest)continue;
+    if(breakValid(sid,c,dur,day,tentative))return c;
+  }
+  return null;
+}
+
+function autoSchedule(){
+  const day=S.day;
+  const working=workingStaff(day);
+  if(!working.length){alert('No staff are working on this day.');return}
+  // Sort: staff in higher-requirement rooms first (more constrained)
+  const sorted=[...working].sort((a,b)=>{
+    const rA=staffRoom(a.id,day),rB=staffRoom(b.id,day);
+    return (rA?reqAdults(rA):0)<(rB?reqAdults(rB):0)?1:-1;
+  });
+  const tentative={};
+  const failed=[];
+  for(const m of sorted){
+    const sc=m.schedule[day];
+    const slot=findSlot(m.id,t2m(sc.start),t2m(sc.end),day,tentative);
+    if(slot!==null)tentative[m.id]={start:slot,end:slot+S.config.breakDuration};
+    else failed.push(m.name);
+  }
+  S.breaks[day]=tentative;
+  persist();renderTimeline();renderBreakInfo();
+  if(failed.length){
+    const el=document.getElementById('unscheduled-warn');
+    el.style.display='block';
+    el.innerHTML=`⚠ Could not schedule breaks for: <strong>${failed.join(', ')}</strong>. The shift may be too short, or room coverage constraints cannot be met. Try adjusting Settings or manually setting their break.`;
+  }else{
+    document.getElementById('unscheduled-warn').style.display='none';
+  }
+}
+
+function clearBreaks(){S.breaks[S.day]={};persist();renderTimeline();renderBreakInfo();document.getElementById('unscheduled-warn').style.display='none'}
+
+// ── TIMELINE ───────────────────────────────────────────────────────────────
+function renderTimeline(){
+  const day=S.day;
+  const working=workingStaff(day);
+  const body=document.getElementById('t-body');
+  const hoursEl=document.getElementById('t-hours');
+  const inner=document.getElementById('tinner');
+  inner.style.setProperty('--hw',HW+'px');
+
+  // Hours row
+  const hrs=[];
+  for(let h=TL_START/60;h<=TL_END/60;h++){
+    const x=min2px(h*60);
+    const lbl=h===0?'12am':h<12?`${h}am`:h===12?'12pm':`${h-12}pm`;
+    hrs.push(`<div class="hl" style="left:${x}px">${lbl}</div>`);
+  }
+  hoursEl.style.width=TL_W+'px';
+  hoursEl.innerHTML=hrs.join('');
+
+  const emptyEl=document.getElementById('sched-empty');
+  if(!working.length){body.innerHTML='';emptyEl.style.display='block';return}
+  emptyEl.style.display='none';
+
+  body.innerHTML=working.map(s=>{
+    const sc=s.schedule[day];
+    const sm=t2m(sc.start),em=t2m(sc.end);
+    const sx=min2px(sm),sw=min2px(em)-sx;
+    const brk=S.breaks[day][s.id];
+    const rid=staffRoom(s.id,day);
+    const room=S.rooms.find(r=>r.id===rid);
+    let breakHtml='';
+    if(brk){
+      const bx=min2px(brk.start),bw=min2px(brk.end)-bx;
+      breakHtml=`<div class="bbar" style="left:${bx}px;width:${bw}px;background:${s.color}" data-sid="${s.id}" data-start="${brk.start}" data-dur="${S.config.breakDuration}" title="Break ${m2disp(brk.start)}–${m2disp(brk.end)} · Drag to adjust">☕</div>`;
+    }else{
+      breakHtml=`<div class="nbmsg">No break scheduled</div>`;
+    }
+    return`<div class="trow">
+      <div class="tname">
+        <div class="tnd" style="background:${s.color}"></div>
+        <div><div class="tnt">${s.name}</div>${room?`<div class="tnr">${room.name}</div>`:''}</div>
+      </div>
+      <div class="ttrack" style="width:${TL_W}px" data-sid="${s.id}">
+        <div class="tgrid"></div>
+        <div class="sbar" style="left:${sx}px;width:${sw}px;background:${s.color}"></div>
+        ${breakHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  initDrag();
+}
+
+function renderBreakInfo(){
+  const day=S.day;
+  const entries=Object.entries(S.breaks[day]||{});
+  const el=document.getElementById('break-info'),chips=document.getElementById('break-chips');
+  if(!entries.length){el.style.display='none';return}
+  el.style.display='block';
+  chips.innerHTML=entries.map(([sid,brk])=>{
+    const s=S.staff.find(x=>x.id===sid);if(!s)return'';
+    return`<div class="bchip"><div style="width:8px;height:8px;border-radius:50%;background:${s.color}"></div><strong>${s.name}</strong>: ${m2disp(brk.start)}–${m2disp(brk.end)}</div>`;
+  }).join('');
+}
+
+// ── DRAG & DROP ────────────────────────────────────────────────────────────
+let drag=null;
+
+function initDrag(){
+  document.querySelectorAll('.bbar').forEach(el=>{
+    el.addEventListener('mousedown',startDrag);
+    el.addEventListener('touchstart',startDragTouch,{passive:false});
+  });
+}
+
+function getTrackRect(sid){
+  const track=document.querySelector(`.ttrack[data-sid="${sid}"]`);
+  return track?track.getBoundingClientRect():null;
+}
+
+function startDrag(e){
+  if(e.button!==0)return;
+  e.preventDefault();
+  const bar=e.currentTarget;
+  const sid=bar.dataset.sid;
+  const dur=parseInt(bar.dataset.dur);
+  const startMin=parseInt(bar.dataset.start);
+  const rect=getTrackRect(sid);
+  if(!rect)return;
+  const barX=min2px(startMin);
+  const offX=e.clientX-rect.left-barX;
+  drag={bar,sid,dur,offX,rect,origStart:startMin};
+  bar.classList.add('dragging');
+  document.addEventListener('mousemove',onDrag);
+  document.addEventListener('mouseup',endDrag);
+}
+
+function startDragTouch(e){
+  e.preventDefault();
+  const bar=e.currentTarget;
+  const sid=bar.dataset.sid;
+  const dur=parseInt(bar.dataset.dur);
+  const startMin=parseInt(bar.dataset.start);
+  const rect=getTrackRect(sid);
+  if(!rect)return;
+  const touch=e.touches[0];
+  const barX=min2px(startMin);
+  const offX=touch.clientX-rect.left-barX;
+  drag={bar,sid,dur,offX,rect,origStart:startMin};
+  bar.classList.add('dragging');
+  document.addEventListener('touchmove',onDragTouch,{passive:false});
+  document.addEventListener('touchend',endDragTouch);
+}
+
+function getDragPos(clientX){
+  if(!drag)return;
+  const{bar,sid,dur,offX,rect}=drag;
+  const day=S.day;
+  const s=S.staff.find(x=>x.id===sid);
+  const sc=s.schedule[day];
+  const shiftStart=t2m(sc.start),shiftEnd=t2m(sc.end);
+  const earliest=shiftStart+S.config.minAfterStart;
+  const latest=shiftEnd-S.config.minBeforeEnd-dur;
+  let rawX=clientX-rect.left-offX;
+  rawX=Math.max(min2px(earliest),Math.min(rawX,min2px(latest)));
+  let newTime=px2min(rawX);
+  newTime=Math.round(newTime/5)*5;
+  newTime=Math.max(earliest,Math.min(newTime,latest));
+  const newX=min2px(newTime);
+  bar.style.left=newX+'px';
+  const tentative={...S.breaks[day],[sid]:{start:newTime,end:newTime+dur}};
+  const valid=newTime>=earliest&&newTime<=latest&&breakValid(sid,newTime,dur,day,tentative);
+  bar.classList.toggle('invalid',!valid);
+  drag.newTime=newTime;drag.valid=valid;
+  // Tooltip
+  const tt=document.getElementById('drag-tooltip');
+  tt.style.display='block';
+  tt.textContent=`${m2disp(newTime)} – ${m2disp(newTime+dur)}${valid?'':' ⚠ Invalid'}`;
+  tt.style.left=(clientX+10)+'px';
+  tt.style.top=(window.scrollY+rect.top-32)+'px';
+  tt.style.background=valid?'var(--text)':var_danger();
+}
+
+function var_danger(){return '#ef4444'}
+
+function onDrag(e){getDragPos(e.clientX)}
+function onDragTouch(e){e.preventDefault();getDragPos(e.touches[0].clientX)}
+
+function commitDrag(){
+  if(!drag)return;
+  const{bar,sid,dur,origStart,newTime,valid}=drag;
+  bar.classList.remove('dragging','invalid');
+  document.getElementById('drag-tooltip').style.display='none';
+  if(valid&&newTime!==undefined){
+    S.breaks[S.day][sid]={start:newTime,end:newTime+dur};
+    persist();
+  }
+  drag=null;
+  renderTimeline();renderBreakInfo();
+}
+
+function endDrag(){document.removeEventListener('mousemove',onDrag);document.removeEventListener('mouseup',endDrag);commitDrag()}
+function endDragTouch(){document.removeEventListener('touchmove',onDragTouch);document.removeEventListener('touchend',endDragTouch);commitDrag()}
+
+// ── SCHEDULE ───────────────────────────────────────────────────────────────
+function renderDayTabs(){
+  document.getElementById('day-tabs').innerHTML=DAYS.map(d=>`<button class="dtab${d===S.day?' active':''}" onclick="selectDay('${d}')">${DSHORT[d]}</button>`).join('');
+}
+
+function selectDay(d){S.day=d;renderSchedule()}
+function renderSchedule(){renderDayTabs();renderAssignments();renderTimeline();renderBreakInfo()}
+
+// ── SEED DATA ──────────────────────────────────────────────────────────────
+function seedData(){
+  S.rooms=[
+    {id:'r1',name:'Nursery',childCount:6},
+    {id:'r2',name:'Toddlers',childCount:10},
+    {id:'r3',name:'Preschool',childCount:14},
+  ];
+  S.staff=[
+    {id:'s1',name:'Sarah K',color:'#0d9488',schedule:{
+      mon:{active:true,start:'07:00',end:'15:00'},tue:{active:true,start:'07:00',end:'15:00'},
+      wed:{active:true,start:'09:00',end:'17:00'},thu:{active:false,start:'08:00',end:'16:00'},
+      fri:{active:true,start:'07:00',end:'15:00'},
+    }},
+    {id:'s2',name:'James T',color:'#7c3aed',schedule:{
+      mon:{active:true,start:'08:00',end:'16:30'},tue:{active:true,start:'08:00',end:'16:30'},
+      wed:{active:true,start:'08:00',end:'16:30'},thu:{active:true,start:'08:00',end:'16:30'},
+      fri:{active:false,start:'08:00',end:'16:00'},
+    }},
+    {id:'s3',name:'Emma L',color:'#db2777',schedule:{
+      mon:{active:true,start:'09:00',end:'17:00'},tue:{active:false,start:'09:00',end:'17:00'},
+      wed:{active:true,start:'09:00',end:'17:00'},thu:{active:true,start:'09:00',end:'17:00'},
+      fri:{active:true,start:'09:00',end:'17:00'},
+    }},
+    {id:'s4',name:'Tom R',color:'#d97706',schedule:{
+      mon:{active:false,start:'07:30',end:'15:30'},tue:{active:true,start:'07:30',end:'15:30'},
+      wed:{active:true,start:'07:30',end:'15:30'},thu:{active:true,start:'07:30',end:'15:30'},
+      fri:{active:true,start:'07:30',end:'15:30'},
+    }},
+    {id:'s5',name:'Grace M',color:'#0ea5e9',schedule:{
+      mon:{active:true,start:'10:00',end:'18:00'},tue:{active:true,start:'10:00',end:'18:00'},
+      wed:{active:false,start:'10:00',end:'18:00'},thu:{active:true,start:'10:00',end:'18:00'},
+      fri:{active:true,start:'10:00',end:'18:00'},
+    }},
+  ];
+  S.assignments={
+    mon:{r1:['s1'],r2:['s2','s3'],r3:['s5']},
+    tue:{r1:['s1'],r2:['s2','s4'],r3:['s5']},
+    wed:{r1:['s1'],r2:['s2','s3','s4'],r3:[]},
+    thu:{r2:['s2','s3','s4'],r3:['s5']},
+    fri:{r1:['s1'],r2:['s3','s4'],r3:['s5']},
+  };
+  DAYS.forEach(d=>{if(!S.breaks[d])S.breaks[d]={}});
+  persist();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+loadPersist();
+if(!S.rooms.length&&!S.staff.length)seedData();
+renderRooms();
+renderStaff();
+renderSchedule();
+</script>
+</body>
+</html>
