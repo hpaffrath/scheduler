@@ -263,7 +263,6 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--
         <tbody id="btable-body"></tbody>
       </table>
     </div>
-    <div class="warn" id="cov-warn" style="display:none"></div>
     <div class="crit" id="crit-warn" style="display:none"></div>
     <div class="notes-box">
       <div class="notes-hdr">
@@ -392,6 +391,23 @@ function load(){
       if(!S.breaks[d])S.breaks[d]={};
       if(!S.notes[d])S.notes[d]='';
     });
+    // If Mon has assignments but other days are empty, copy Mon as a starting point
+    var monAsgn=S.assignments.mon;
+    var monHasAny=Object.keys(monAsgn).some(function(rid){return (monAsgn[rid]||[]).length>0;});
+    if(monHasAny){
+      ['tue','wed','thu','fri'].forEach(function(day){
+        var dayAsgn=S.assignments[day];
+        var dayHasAny=Object.keys(dayAsgn).some(function(rid){return (dayAsgn[rid]||[]).length>0;});
+        if(!dayHasAny){
+          // Copy Monday's assignments, keeping only staff who work this day
+          var working=workingStaff(day).map(function(s){return s.id;});
+          Object.keys(monAsgn).forEach(function(rid){
+            var sids=(monAsgn[rid]||[]).filter(function(sid){return working.indexOf(sid)>=0;});
+            if(sids.length)S.assignments[day][rid]=sids;
+          });
+        }
+      });
+    }
   }catch(e){}
 }
 
@@ -662,69 +678,268 @@ function amRm(rid,sid){var d=S.day;if(S.assignments[d][rid])S.assignments[d][rid
 function autoSchedule(){
   var day=S.day,c=S.config,working=workingStaff(day);
   if(!working.length){alert('No staff are working today.');return;}
-  var sorted=working.slice().sort(function(a,b){
+
+  // Split into room-assigned staff and floaters (unassigned)
+  var allAssigned=[];
+  Object.keys(S.assignments[day]).forEach(function(rid){
+    (S.assignments[day][rid]||[]).forEach(function(sid){allAssigned.push(sid);});
+  });
+  var assigned=working.filter(function(s){return allAssigned.indexOf(s.id)>=0;});
+  var floaters=working.filter(function(s){return allAssigned.indexOf(s.id)<0;});
+
+  // Sort assigned by most-constrained window first
+  assigned.sort(function(a,b){
     var aw=effectiveWindow(a,day),bw=effectiveWindow(b,day);
     return(aw.end-aw.start)-(bw.end-bw.start);
   });
+
   var breaks={},impossible=[];
-  sorted.forEach(function(s){
+
+  // ── PASS 1: Schedule all room-assigned staff ───────────────────────────
+  assigned.forEach(function(s){
     var w=effectiveWindow(s,day);
     if(w.end-w.start<c.lunchDur+c.teaDur){impossible.push(s.name);return;}
     breaks[s.id]=findBestSlot(s.id,w.start,w.end,day,breaks);
   });
+
+  // ── PASS 2: Schedule floaters in the gaps ─────────────────────────────
+  // Floaters cover rooms during assigned-staff breaks, so their own breaks
+  // should go in windows when coverage isn't needed.
+  var coverageGaps=getCoverageGaps(day,breaks);
+  floaters.forEach(function(s){
+    var w=effectiveWindow(s,day);
+    if(w.end-w.start<c.lunchDur+c.teaDur){impossible.push(s.name);return;}
+    breaks[s.id]=findFloaterSlot(s,w.start,w.end,coverageGaps);
+  });
+
   S.breaks[day]=breaks;persist();renderTimeline();renderBreakInfo();
+
+  var critEl=document.getElementById('crit-warn');
+  if(impossible.length){
+    critEl.style.display='block';
+    critEl.innerHTML='&#9888;&#65039; Could not schedule breaks for <strong>'+impossible.join(', ')+'</strong> &mdash; break window too short. Check Settings.';
+  } else {
+    critEl.style.display='none';
+  }
+
+  // Remaining coverage issues go into notes
   var covIssues=checkAllCoverage(day,breaks);
-  var critEl=document.getElementById('crit-warn'),covEl=document.getElementById('cov-warn');
-  if(impossible.length){critEl.style.display='block';critEl.innerHTML='&#9888;&#65039; Could not schedule breaks for <strong>'+impossible.join(', ')+'</strong> &mdash; break window too short. Check Settings.';}
-  else critEl.style.display='none';
-  if(covIssues.length){covEl.style.display='block';covEl.innerHTML='&#128203; <strong>Coverage note:</strong> '+covIssues.join('; ')+'. Consider dragging those breaks to stagger them.';}
-  else covEl.style.display='none';
+  if(covIssues.length){
+    var ta=document.getElementById('notes-ta');
+    var existing=(S.notes[day]||'').replace(/--- Coverage note[\s\S]*?\n\n/,'').replace(/--- Coverage note[\s\S]*/,'').trim();
+    var covBlock='--- Coverage note (edit or delete as needed) ---\n'+covIssues.map(function(i){return '\u26a0 '+i;}).join('\n');
+    var merged=covBlock+(existing?'\n\n'+existing:'');
+    ta.value=merged;S.notes[day]=merged;persist();
+  }
 }
 
 function findBestSlot(sid,earliest,latest,day,tentative){
-  var c=S.config,lDur=c.lunchDur,tDur=c.teaDur,target=c.lunchTarget;
-  var lEarliest=earliest,lLatest=latest-lDur;
-  var lTarget=clamp(target,lEarliest,lLatest);
-  var lCandidates=[];
-  for(var off=0;lTarget-off>=lEarliest||lTarget+off<=lLatest;off+=5){
-    if(lTarget-off>=lEarliest)lCandidates.push(lTarget-off);
-    if(off>0&&lTarget+off<=lLatest)lCandidates.push(lTarget+off);
+  var c=S.config;
+  var s=S.staff.find(function(x){return x.id===sid;});
+  var sc=s.schedule[day];
+  var shiftStart=t2m(sc.start),shiftEnd=t2m(sc.end);
+  var lDur=c.lunchDur,tDur=c.teaDur;
+  var lLatest=latest-lDur;
+
+  // ── LUNCH TARGET: midpoint of this person's shift, clamped to break window ─
+  // Early starters get earlier lunch, late starters get later lunch.
+  var shiftMid=Math.round((shiftStart+shiftEnd)/2/5)*5;
+  var lunchTarget=clamp(shiftMid,earliest,lLatest);
+
+  // Avoid overlapping a room-mate's lunch (room must always have someone present)
+  var rid=staffRoom(sid,day);
+  var colleagues=rid?(S.assignments[day][rid]||[]).filter(function(id){return id!==sid;}):[];
+  var takenLunch=colleagues.map(function(id){return tentative[id]?tentative[id].lunch:null;}).filter(Boolean);
+
+  var bestLunch=null;
+  for(var off=0;off<=360;off+=5){
+    var tries=off===0?[lunchTarget]:[lunchTarget-off,lunchTarget+off];
+    for(var ti=0;ti<tries.length;ti++){
+      var ls=tries[ti];
+      if(ls<earliest||ls>lLatest)continue;
+      var le=ls+lDur;
+      if(!takenLunch.some(function(tl){return tl.start<le&&tl.end>ls;})){
+        bestLunch={start:ls,end:le};break;
+      }
+    }
+    if(bestLunch)break;
   }
-  var candidates=[];
-  lCandidates.forEach(function(lStart){
-    var lEnd=lStart+lDur;
-    // Tea BEFORE lunch — as early as possible
-    var tb=earliest,te=tb+tDur,gB=lStart-te;
-    if(te<=lStart&&gB>=c.minGap)candidates.push({lunch:{start:lStart,end:lEnd},tea:{start:tb,end:te},gap:gB,lDist:Math.abs(lStart-target)});
-    // Tea AFTER lunch — as late as possible
-    var taEnd=latest,taStart=taEnd-tDur,gA=taStart-lEnd;
-    if(taStart>=lEnd&&gA>=c.minGap)candidates.push({lunch:{start:lStart,end:lEnd},tea:{start:taStart,end:taEnd},gap:gA,lDist:Math.abs(lStart-target)});
-  });
-  candidates.sort(function(a,b){var dd=a.lDist-b.lDist;return dd!==0?dd:b.gap-a.gap;});
-  for(var i=0;i<candidates.length;i++){if(checkCovSlot(sid,candidates[i],day,tentative))return candidates[i];}
-  if(candidates.length)return candidates[0];
-  // Absolute fallback
-  var ts=earliest,te2=ts+tDur,ls=Math.min(lLatest,Math.max(lEarliest,te2));
-  return{tea:{start:ts,end:te2},lunch:{start:ls,end:ls+lDur},gap:ls-te2};
+  if(!bestLunch)bestLunch={start:earliest,end:earliest+lDur};
+
+  // ── TEA TARGET: midpoint of working stint, not the edge of the window ───────
+  // Before lunch: target = midpoint of [shiftStart, lunchStart]
+  // After lunch:  target = midpoint of [lunchEnd, shiftEnd]
+  // Pick whichever stint gives the bigger gap and lands inside the window.
+
+  // Helper: find closest valid tea position to a target within [tMin, tMaxStart]
+  function findTeaPos(tTarget,tMin,tMaxStart){
+    if(tMin>tMaxStart)return null;
+    tTarget=clamp(tTarget,tMin,tMaxStart);
+    for(var o=0;o<=300;o+=5){
+      var ops=o===0?[tTarget]:[tTarget-o,tTarget+o];
+      for(var j=0;j<ops.length;j++){
+        var ts=ops[j];
+        if(ts>=tMin&&ts<=tMaxStart)return{start:ts,end:ts+tDur};
+      }
+    }
+    return null;
+  }
+
+  // Tea BEFORE lunch — must end at least minGap before lunch starts
+  var teaBefore=null,gapBefore=-1;
+  if(bestLunch.start-earliest>=tDur+c.minGap){
+    var tBTarget=Math.round((shiftStart+bestLunch.start)/2/5)*5;
+    var tBMaxStart=bestLunch.start-c.minGap-tDur; // latest start so gap is met
+    var cand=findTeaPos(tBTarget,earliest,tBMaxStart);
+    if(cand){teaBefore=cand;gapBefore=bestLunch.start-cand.end;}
+  }
+
+  // Tea AFTER lunch — must start at least minGap after lunch ends
+  var teaAfter=null,gapAfter=-1;
+  if(latest-bestLunch.end>=tDur+c.minGap){
+    var tATarget=Math.round((bestLunch.end+shiftEnd)/2/5)*5;
+    var tAMinStart=bestLunch.end+c.minGap; // earliest start so gap is met
+    var cand2=findTeaPos(tATarget,tAMinStart,latest-tDur);
+    if(cand2){teaAfter=cand2;gapAfter=cand2.start-bestLunch.end;}
+  }
+
+  // Choose the option with the larger gap (more rest between breaks)
+  var bestTea=null;
+  if(teaBefore&&teaAfter){
+    bestTea=gapBefore>=gapAfter?teaBefore:teaAfter;
+  }else if(teaBefore){bestTea=teaBefore;}
+  else if(teaAfter){bestTea=teaAfter;}
+
+  // Fallback: relax minGap, pick whatever fits with biggest gap
+  if(!bestTea){
+    var best=-1;
+    for(var ts4=earliest;ts4+tDur<=bestLunch.start;ts4+=5){
+      var g4=bestLunch.start-(ts4+tDur);
+      if(g4>best){bestTea={start:ts4,end:ts4+tDur};best=g4;}
+    }
+    for(var ts5=latest-tDur;ts5>=bestLunch.end;ts5-=5){
+      var g5=ts5-bestLunch.end;
+      if(g5>best){bestTea={start:ts5,end:ts5+tDur};best=g5;}
+    }
+  }
+
+  // Last resort
+  if(!bestTea){
+    if(bestLunch.start-tDur>=earliest)bestTea={start:bestLunch.start-tDur,end:bestLunch.start};
+    else{var ts6=Math.min(bestLunch.end,latest-tDur);bestTea={start:ts6,end:ts6+tDur};}
+  }
+
+  var actualGap=bestLunch.start>bestTea.end?bestLunch.start-bestTea.end:bestTea.start-bestLunch.end;
+  return{lunch:bestLunch,tea:bestTea,gap:actualGap};
 }
 
-function checkCovSlot(sid,brk,day,tentative){
-  var rid=staffRoom(sid,day);if(!rid)return true;
-  var room=S.rooms.find(function(r){return r.id===rid;});if(!room)return true;
-  var req=reqEd(room),roomStaff=S.assignments[day][rid]||[];
-  if(roomStaff.length<=1)return true;
-  var all=Object.assign({},tentative);all[sid]=brk;
-  function ok(bStart,bEnd){
-    var present=0;
-    roomStaff.forEach(function(rsid){
-      if(rsid===sid)return;
-      var rb=all[rsid];if(!rb){present++;return;}
-      var onBreak=(rb.lunch&&rb.lunch.start<bEnd&&rb.lunch.end>bStart)||(rb.tea&&rb.tea.start<bEnd&&rb.tea.end>bStart);
-      if(!onBreak)present++;
+// Returns merged intervals where any room is below ratio due to breaks
+function getCoverageGaps(day,breaks){
+  var c=S.config,raw=[];
+  for(var t=c.winStart;t<c.winEnd;t+=5){
+    var needsCover=false;
+    S.rooms.forEach(function(room){
+      var roomStaff=S.assignments[day][room.id]||[];
+      var req=reqEd(room);
+      if(roomStaff.length<req)return;
+      var onBreak=0;
+      roomStaff.forEach(function(sid){
+        var brk=breaks[sid];if(!brk)return;
+        if((brk.lunch&&brk.lunch.start<=t&&brk.lunch.end>t)||(brk.tea&&brk.tea.start<=t&&brk.tea.end>t))onBreak++;
+      });
+      if(roomStaff.length-onBreak<req)needsCover=true;
     });
-    return present>=Math.max(1,req-1);
+    if(needsCover)raw.push(t);
   }
-  return ok(brk.lunch.start,brk.lunch.end)&&ok(brk.tea.start,brk.tea.end);
+  // Merge consecutive minutes into intervals
+  var merged=[],gStart=null,prev=null;
+  raw.forEach(function(t){
+    if(gStart===null){gStart=t;}
+    else if(t>prev+5){merged.push({start:gStart,end:prev+5});gStart=t;}
+    prev=t;
+  });
+  if(gStart!==null)merged.push({start:gStart,end:(prev||gStart)+5});
+  return merged;
+}
+
+// Schedule a floater's breaks preferring times NOT needed for room coverage
+function findFloaterSlot(s,earliest,latest,busyIntervals){
+  var c=S.config,lDur=c.lunchDur,tDur=c.teaDur;
+  var sc=s.schedule[S.day];
+  var shiftStart=t2m(sc.start),shiftEnd=t2m(sc.end);
+  var lLatest=latest-lDur;
+
+  function overlapsBusy(start,dur){
+    var end=start+dur;
+    return busyIntervals.some(function(b){return b.start<end&&b.end>start;});
+  }
+
+  // Lunch target = shift midpoint, clamped to window
+  var shiftMid=Math.round((shiftStart+shiftEnd)/2/5)*5;
+  var lunchTarget=clamp(shiftMid,earliest,lLatest);
+
+  // Find best lunch not overlapping a busy (coverage needed) interval
+  var bestLunch=null;
+  for(var off=0;off<=360;off+=5){
+    var tries=off===0?[lunchTarget]:[lunchTarget-off,lunchTarget+off];
+    for(var ti=0;ti<tries.length;ti++){
+      var ls=tries[ti];
+      if(ls<earliest||ls>lLatest)continue;
+      if(!overlapsBusy(ls,lDur)){bestLunch={start:ls,end:ls+lDur};break;}
+    }
+    if(bestLunch)break;
+  }
+  if(!bestLunch)bestLunch={start:clamp(lunchTarget,earliest,lLatest),end:clamp(lunchTarget,earliest,lLatest)+lDur};
+
+  // Tea target = midpoint of working stint, avoiding busy intervals
+  function findTeaPos(tTarget,tMin,tMaxStart){
+    if(tMin>tMaxStart)return null;
+    tTarget=clamp(tTarget,tMin,tMaxStart);
+    for(var o=0;o<=300;o+=5){
+      var ops=o===0?[tTarget]:[tTarget-o,tTarget+o];
+      for(var j=0;j<ops.length;j++){
+        var ts=ops[j];
+        if(ts>=tMin&&ts<=tMaxStart&&!overlapsBusy(ts,tDur))return{start:ts,end:ts+tDur};
+      }
+    }
+    return null;
+  }
+
+  // Tea before lunch
+  var teaBefore=null,gapBefore=-1;
+  if(bestLunch.start-earliest>=tDur+c.minGap){
+    var tBTarget=Math.round((shiftStart+bestLunch.start)/2/5)*5;
+    var cand=findTeaPos(tBTarget,earliest,bestLunch.start-c.minGap-tDur);
+    if(cand){teaBefore=cand;gapBefore=bestLunch.start-cand.end;}
+  }
+
+  // Tea after lunch
+  var teaAfter=null,gapAfter=-1;
+  if(latest-bestLunch.end>=tDur+c.minGap){
+    var tATarget=Math.round((bestLunch.end+shiftEnd)/2/5)*5;
+    var cand2=findTeaPos(tATarget,bestLunch.end+c.minGap,latest-tDur);
+    if(cand2){teaAfter=cand2;gapAfter=cand2.start-bestLunch.end;}
+  }
+
+  var bestTea=null;
+  if(teaBefore&&teaAfter){bestTea=gapBefore>=gapAfter?teaBefore:teaAfter;}
+  else if(teaBefore){bestTea=teaBefore;}
+  else if(teaAfter){bestTea=teaAfter;}
+
+  // Fallback: ignore busy, just maximise gap
+  if(!bestTea){
+    var best=-1;
+    for(var ts3=earliest;ts3+tDur<=bestLunch.start;ts3+=5){var g3=bestLunch.start-(ts3+tDur);if(g3>best){bestTea={start:ts3,end:ts3+tDur};best=g3;}}
+    for(var ts4=latest-tDur;ts4>=bestLunch.end;ts4-=5){var g4=ts4-bestLunch.end;if(g4>best){bestTea={start:ts4,end:ts4+tDur};best=g4;}}
+  }
+
+  if(!bestTea){
+    if(bestLunch.start-tDur>=earliest)bestTea={start:bestLunch.start-tDur,end:bestLunch.start};
+    else{var ts5=Math.min(bestLunch.end,latest-tDur);bestTea={start:ts5,end:ts5+tDur};}
+  }
+
+  var actualGap=bestLunch.start>bestTea.end?bestLunch.start-bestTea.end:bestTea.start-bestLunch.end;
+  return{lunch:bestLunch,tea:bestTea,gap:actualGap};
 }
 
 function checkAllCoverage(day,breaks){
@@ -757,7 +972,6 @@ function checkAllCoverage(day,breaks){
 
 function clearBreaks(){
   S.breaks[S.day]={};persist();renderTimeline();renderBreakInfo();
-  document.getElementById('cov-warn').style.display='none';
   document.getElementById('crit-warn').style.display='none';
 }
 
@@ -928,22 +1142,20 @@ function onDrag(e){
   var isT=e.type==='touchmove';if(isT)e.preventDefault();
   var cx=isT?e.touches[0].clientX:e.clientX;
   var bar=drag.bar,sid=drag.sid,type=drag.type,offX=drag.offX,rect=drag.rect;
-  var c=S.config,s=S.staff.find(function(x){return x.id===sid;});
-  var dur=type==='lunch'?c.lunchDur:c.teaDur;
-  var w=effectiveWindow(s,S.day);
+  var dur=type==='lunch'?S.config.lunchDur:S.config.teaDur;
+  // Free drag — clamp only to the visible timeline edges
   var ns=Math.round(px2min(cx-rect.left-offX)/5)*5;
-  ns=clamp(ns,w.start,w.end-dur);
+  ns=clamp(ns,TL_START,TL_END-dur);
   var brk=Object.assign({},S.breaks[S.day][sid]);
   brk[type]={start:ns,end:ns+dur};
   var gap=brk.lunch.start<brk.tea.start?brk.tea.start-brk.lunch.end:brk.lunch.start-brk.tea.end;
-  var valid=gap>=c.minGap;
   bar.style.left=min2px(ns)+'px';
-  bar.classList.toggle('invalid',!valid);
-  drag.newStart=ns;drag.valid=valid;
+  bar.classList.remove('invalid');
+  drag.newStart=ns;
   var tt=document.getElementById('dtip');
   tt.style.display='block';
-  tt.style.background=valid?'#1e293b':'#ef4444';
-  tt.textContent=(type==='lunch'?'Lunch':'Tea')+': '+m2d(ns)+'\u2013'+m2d(ns+dur)+' \u00B7 gap: '+gap+'min'+(valid?'':' (min '+c.minGap+'min)');
+  tt.style.background='#1e293b';
+  tt.textContent=(type==='lunch'?'Lunch':'Tea')+': '+m2d(ns)+'\u2013'+m2d(ns+dur)+' \u00B7 gap: '+gap+'min';
   tt.style.left=(cx+12)+'px';
   tt.style.top=(window.scrollY+rect.top-38)+'px';
 }
@@ -952,10 +1164,11 @@ function endDrag(e){
   document.removeEventListener(isT?'touchmove':'mousemove',onDrag);
   document.removeEventListener(isT?'touchend':'mouseup',endDrag);
   if(!drag)return;
-  var bar=drag.bar,sid=drag.sid,type=drag.type,newStart=drag.newStart,valid=drag.valid;
+  var bar=drag.bar,sid=drag.sid,type=drag.type,newStart=drag.newStart;
   bar.classList.remove('dragging','invalid');
   document.getElementById('dtip').style.display='none';
-  if(valid&&newStart!==undefined){
+  // Always save — manual overrides have no restrictions
+  if(newStart!==undefined){
     var dur=type==='lunch'?S.config.lunchDur:S.config.teaDur;
     S.breaks[S.day][sid][type]={start:newStart,end:newStart+dur};persist();
   }
@@ -1078,15 +1291,7 @@ function printSchedule(){
   });
   body+='</tr></tbody></table>';
 
-  // Section 3: Coverage note
-  var covIssues=checkAllCoverage(day,breaks);
-  if(covIssues.length){
-    body+='<div class="cov"><div class="covt">Coverage Note</div>';
-    covIssues.forEach(function(iss){body+='<div class="covl">'+esc(iss)+'</div>';});
-    body+='</div>';
-  }
-
-  // Section 4: Other notes
+  // Section 3: Other notes (includes any coverage notes the user has kept/edited)
   body+='<div class="notes"><div class="nt">Other Notes</div>';
   if(notes.trim()){
     notes.split('\n').forEach(function(line){
@@ -1139,7 +1344,11 @@ function seedData(){
     {id:'s15',name:'Harpinder',color:'#8b5cf6',schedule:mk(['mon','tue','wed','thu','fri'],'06:00','16:30')},
     {id:'s16',name:'Danni',    color:'#f97316',schedule:mk(['mon','tue','wed','thu','fri'],'09:30','17:00')}
   ];
-  S.assignments.mon={r1:['s04'],r2:['s02','s03'],r3:['s05','s06'],r4:['s08','s09'],r5:['s10','s11'],r6:['s12','s13'],r7:['s14','s15']};
+  S.assignments.mon={r1:['s04'],r2:['s02','s03'],r3:['s05','s06','s07'],r4:['s08','s09'],r5:['s10','s11','s16'],r6:['s12','s13'],r7:['s14','s15']};
+  S.assignments.tue={r1:['s01'],r2:['s02','s03'],r3:['s05','s06','s07'],r4:['s08','s09'],r5:['s10','s11','s16'],r6:['s12','s13'],r7:['s14','s15']};
+  S.assignments.wed={r1:['s04'],r2:['s02','s03'],r3:['s05','s06','s07'],r4:['s08','s09'],r5:['s10','s11','s16'],r6:['s12','s13'],r7:['s14','s15']};
+  S.assignments.thu={r1:['s01'],r2:['s02','s03'],r3:['s05','s06','s07'],r4:['s08','s09'],r5:['s10','s11','s16'],r6:['s12','s13'],r7:['s14','s15']};
+  S.assignments.fri={r1:['s04'],r2:['s03','s07'],r3:['s05','s06','s01'],r4:['s08','s09'],r5:['s10','s11','s16'],r6:['s12','s13'],r7:['s14','s15']};
   DAYS.forEach(function(d){if(!S.breaks[d])S.breaks[d]={};});
   persist();
 }
