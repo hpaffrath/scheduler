@@ -182,18 +182,34 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--
 .es{text-align:center;padding:40px 24px;color:var(--muted)}
 .es-i{font-size:36px;margin-bottom:10px}
 .es-t{font-size:15px;font-weight:500;color:var(--text);margin-bottom:3px}.es-s{font-size:13px}
+
+/* HELP */
+.help-section{background:var(--sur);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px;box-shadow:var(--sh)}
+.help-title{font-size:15px;font-weight:600;margin-bottom:10px;color:var(--teal-d)}
+.help-section p{font-size:13px;color:var(--text);line-height:1.6;margin-bottom:8px}
+.help-section p:last-child{margin-bottom:0}
+.help-section ul{font-size:13px;line-height:1.7;padding-left:20px;margin:6px 0 8px}
+.help-section li{margin-bottom:3px}
+.help-warn{background:var(--amber-l);border:1px solid #fde68a;border-radius:var(--r);padding:8px 12px;color:#92400e;font-size:12px!important}
+
 @media(max-width:640px){.main{padding:12px}.hdr{padding:0 12px}.g2{grid-template-columns:1fr}.fr2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header class="hdr">
-  <div class="logo">BreakTime &#9749;</div>
+  <div class="logo">BreakTime &#9749; <span style="font-size:10px;opacity:.6;font-weight:400">v1.5</span></div>
   <nav class="nav">
     <button class="nb active" onclick="showTab('rooms')">&#127968; Rooms</button>
     <button class="nb" onclick="showTab('staff')">&#128101; Staff</button>
     <button class="nb" onclick="showTab('schedule')">&#128197; Schedule</button>
+    <button class="nb" onclick="showTab('help')">&#10067; Help</button>
   </nav>
-  <button class="hbtn" onclick="openSettings()">&#9881; Settings</button>
+  <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0">
+    <button class="hbtn" onclick="exportData()">&#8595; Export</button>
+    <button class="hbtn" onclick="document.getElementById('import-input').click()">&#8593; Import</button>
+    <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="hbtn" onclick="openSettings()">&#9881; Settings</button>
+  </div>
 </header>
 
 <main class="main">
@@ -275,6 +291,73 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--
       <div class="es-i">&#128197;</div><div class="es-t">No staff working today</div><div class="es-s">Enable days in the Staff tab</div>
     </div>
   </div>
+  <!-- HELP -->
+  <div class="panel" id="panel-help">
+    <div class="ph"><div><div class="pt">Help &amp; User Guide</div><div class="ps">How to use BreakTime to schedule childcare staff breaks</div></div></div>
+    <div style="max-width:860px;display:flex;flex-direction:column;gap:18px">
+
+      <div class="help-section">
+        <div class="help-title">&#127968; 1. Set Up Your Rooms</div>
+        <p>Go to the <strong>Rooms</strong> tab and add each room in your centre. For each room you need to enter:</p>
+        <ul>
+          <li><strong>Room name</strong> (e.g. Lilly Pilly, Gum Nuts)</li>
+          <li><strong>Number of children</strong> present that day &mdash; this changes daily so update it each morning</li>
+          <li><strong>Ratio</strong> (1 educator per X children) &mdash; e.g. enter 4 for a 1:4 ratio, or 11 for a 1:11 ratio</li>
+        </ul>
+        <p>The app calculates the required number of adults automatically. Rooms with younger children typically have a lower ratio (1:4) requiring more adults; older rooms use a higher ratio (1:11).</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">&#128101; 2. Add Your Staff</div>
+        <p>Go to the <strong>Staff</strong> tab. Add each educator with their name, a colour, and their weekly shift times. Toggle each day on or off and set the start and finish time for that day.</p>
+        <p>Staff who work shorter shifts (under the short shift threshold set in Settings) will automatically receive a 30-minute lunch instead of 60 minutes.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">&#128197; 3. Schedule Breaks</div>
+        <p>Go to the <strong>Schedule</strong> tab. Select the day using the Mon&ndash;Fri tabs, then:</p>
+        <ul>
+          <li><strong>Assign staff to rooms</strong> using the room cards at the top. Each room shows how many adults are currently assigned versus required. Green = fully staffed, amber = partially staffed.</li>
+          <li><strong>Unassigned staff</strong> are floaters &mdash; they appear in the timeline but are not tied to a room. They get their own breaks scheduled just like everyone else.</li>
+          <li>Press <strong>&#9889; Auto-Schedule</strong> to generate breaks for everyone automatically.</li>
+          <li><strong>Drag</strong> any lunch or tea block on the timeline to manually adjust the time &mdash; there are no restrictions on manual dragging.</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">&#128203; 4. Notes &amp; Printing</div>
+        <p>Type any extra notes in the <strong>Other Notes</strong> box at the bottom of the Schedule tab &mdash; these are saved per day and will appear on the printed sheet. If Auto-Schedule detects any coverage issues, a coverage note is written there automatically. You can edit or delete it freely.</p>
+        <p>Press <strong>&#128438; Print / PDF</strong> to open a print-ready sheet. In your browser's print dialog, choose <em>Save as PDF</em> as the destination. Landscape orientation is recommended when there are many rooms.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">&#128190; 5. Saving &amp; Backing Up Data</div>
+        <p>All data is saved automatically in your browser's <strong>localStorage</strong>. It persists between sessions on the same browser and device, but is not shared across devices or browsers.</p>
+        <p>Use <strong>&#8595; Export</strong> to download a backup JSON file. Use <strong>&#8593; Import</strong> to restore from a backup or move data to a different device. It is recommended to export a backup regularly.</p>
+        <p class="help-warn">&#9888; Clearing your browser data or cache will delete all saved data. Export a backup first.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">&#9881; Settings</div>
+        <p>Click the Settings button in the top-right to configure:</p>
+        <ul>
+          <li><strong>Lunch duration</strong> &mdash; default 60 minutes</li>
+          <li><strong>Short shift lunch duration</strong> &mdash; default 30 minutes, used when a shift is under the short shift threshold</li>
+          <li><strong>Short shift threshold</strong> &mdash; shifts shorter than this (in hours) get the shorter lunch</li>
+          <li><strong>Tea break duration</strong> &mdash; default 20 minutes</li>
+          <li><strong>Break window</strong> &mdash; the period within which breaks must fall (default 10am&ndash;3pm)</li>
+          <li><strong>Min time from shift start/end</strong> &mdash; how long after clocking in (or before clocking out) a break can begin (default 60 minutes)</li>
+          <li><strong>Min gap between breaks</strong> &mdash; minimum time between lunch and tea (default 90 minutes)</li>
+        </ul>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">&#128274; Scheduling Rules</div>
+        <p>See the full rules listed at the bottom of this page.</p>
+      </div>
+
+    </div>
+  </div>
 </main>
 
 <div class="dtip" id="dtip"></div>
@@ -327,23 +410,30 @@ body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--
       <div class="fg"><label class="fl">Tea break duration (mins)</label><input class="fi" type="number" id="cfg-tea" min="10" max="60" step="5"></div>
     </div>
     <div class="fr2">
+      <div class="fg">
+        <label class="fl">Short shift lunch (mins)</label>
+        <input class="fi" type="number" id="cfg-short-lunch" min="15" max="60" step="5">
+        <div class="fh">Used when shift is shorter than the threshold below</div>
+      </div>
+      <div class="fg">
+        <label class="fl">Short shift threshold (hours)</label>
+        <input class="fi" type="number" id="cfg-short-hours" min="3" max="9" step="0.5">
+        <div class="fh">Shifts under this length get the shorter lunch</div>
+      </div>
+    </div>
+    <div class="fr2">
       <div class="fg"><label class="fl">Break window opens</label><input class="fi" type="time" id="cfg-ws"></div>
       <div class="fg"><label class="fl">Break window closes</label><input class="fi" type="time" id="cfg-we"></div>
     </div>
     <div class="fr2">
       <div class="fg">
-        <label class="fl">Ideal lunch time (target)</label>
-        <input class="fi" type="time" id="cfg-lunch-target">
-        <div class="fh">Algorithm aims lunch as close to this as possible</div>
-      </div>
-      <div class="fg">
         <label class="fl">Min gap between lunch and tea (mins)</label>
         <input class="fi" type="number" id="cfg-gap" min="60" max="240" step="15">
       </div>
-    </div>
-    <div class="fg">
-      <label class="fl">Min time from shift start/end before a break (mins)</label>
-      <input class="fi" type="number" id="cfg-edge" min="15" max="180" step="15">
+      <div class="fg">
+        <label class="fl">Min time from shift start/end before a break (mins)</label>
+        <input class="fi" type="number" id="cfg-edge" min="15" max="180" step="15">
+      </div>
     </div>
     <div class="fa"><button class="btn bs" onclick="closeModal('settings-modal')">Cancel</button><button class="btn bp" onclick="saveSettings()">Save Settings</button></div>
   </div>
@@ -373,7 +463,7 @@ var S={
   assignments:{mon:{},tue:{},wed:{},thu:{},fri:{}},
   breaks:{mon:{},tue:{},wed:{},thu:{},fri:{}},
   notes:{mon:'',tue:'',wed:'',thu:'',fri:''},
-  config:{lunchDur:60,teaDur:20,winStart:10*60,winEnd:15*60,minEdge:60,minGap:90,lunchTarget:12*60},
+  config:{lunchDur:60,teaDur:20,winStart:10*60,winEnd:15*60,minEdge:60,minGap:90,lunchTarget:12*60,shortShiftHours:6,shortLunchDur:30},
   day:'mon'
 };
 
@@ -437,8 +527,14 @@ function staffRoom(sid,day){
   return null;
 }
 function effectiveWindow(s,day){
+  // Lunch window — constrained to the break window AND shift edge buffer
   var sc=s.schedule[day],c=S.config,ss=t2m(sc.start),se=t2m(sc.end);
   return{start:Math.max(c.winStart,ss+c.minEdge),end:Math.min(c.winEnd,se-c.minEdge)};
+}
+function teaWindow(s,day){
+  // Tea window — only shift edge buffer, NO break window constraint
+  var sc=s.schedule[day],c=S.config,ss=t2m(sc.start),se=t2m(sc.end);
+  return{start:ss+c.minEdge,end:se-c.minEdge};
 }
 
 /* ── TABS / MODALS ──────────────────────────────────────────────────────── */
@@ -589,22 +685,24 @@ function openSettings(){
   var c=S.config;
   document.getElementById('cfg-lunch').value=c.lunchDur;
   document.getElementById('cfg-tea').value=c.teaDur;
+  document.getElementById('cfg-short-lunch').value=c.shortLunchDur||30;
+  document.getElementById('cfg-short-hours').value=c.shortShiftHours||6;
   document.getElementById('cfg-ws').value=m2t(c.winStart);
   document.getElementById('cfg-we').value=m2t(c.winEnd);
   document.getElementById('cfg-edge').value=c.minEdge;
   document.getElementById('cfg-gap').value=c.minGap;
-  document.getElementById('cfg-lunch-target').value=m2t(c.lunchTarget||12*60);
   openModal('settings-modal');
 }
 function saveSettings(){
   var c=S.config;
   c.lunchDur=Math.max(30,parseInt(document.getElementById('cfg-lunch').value)||60);
   c.teaDur=Math.max(10,parseInt(document.getElementById('cfg-tea').value)||20);
+  c.shortLunchDur=Math.max(15,parseInt(document.getElementById('cfg-short-lunch').value)||30);
+  c.shortShiftHours=Math.max(1,parseFloat(document.getElementById('cfg-short-hours').value)||6);
   c.winStart=t2m(document.getElementById('cfg-ws').value)||10*60;
   c.winEnd=t2m(document.getElementById('cfg-we').value)||15*60;
   c.minEdge=Math.max(15,parseInt(document.getElementById('cfg-edge').value)||60);
   c.minGap=Math.max(60,parseInt(document.getElementById('cfg-gap').value)||90);
-  c.lunchTarget=t2m(document.getElementById('cfg-lunch-target').value)||12*60;
   closeModal('settings-modal');persist();renderRooms();renderSchedule();
 }
 
@@ -675,41 +773,31 @@ function amAdd(rid,sid){var d=S.day;if(!S.assignments[d][rid])S.assignments[d][r
 function amRm(rid,sid){var d=S.day;if(S.assignments[d][rid])S.assignments[d][rid]=S.assignments[d][rid].filter(function(x){return x!==sid;});persist();buildAmList(rid,d);renderAssignments();renderTimeline();}
 
 /* ── BREAK ALGORITHM ─────────────────────────────────────────────────────── */
+// Returns the correct lunch duration for a person based on their shift length
+function lunchDurFor(s,day){
+  var c=S.config,sc=s.schedule[day];
+  var shiftMins=t2m(sc.end)-t2m(sc.start);
+  return shiftMins<c.shortShiftHours*60?c.shortLunchDur:c.lunchDur;
+}
+
 function autoSchedule(){
   var day=S.day,c=S.config,working=workingStaff(day);
   if(!working.length){alert('No staff are working today.');return;}
 
-  // Split into room-assigned staff and floaters (unassigned)
-  var allAssigned=[];
-  Object.keys(S.assignments[day]).forEach(function(rid){
-    (S.assignments[day][rid]||[]).forEach(function(sid){allAssigned.push(sid);});
-  });
-  var assigned=working.filter(function(s){return allAssigned.indexOf(s.id)>=0;});
-  var floaters=working.filter(function(s){return allAssigned.indexOf(s.id)<0;});
-
-  // Sort assigned by most-constrained window first
-  assigned.sort(function(a,b){
+  // Sort most-constrained window first (smallest available window gets scheduled first)
+  var sorted=working.slice().sort(function(a,b){
     var aw=effectiveWindow(a,day),bw=effectiveWindow(b,day);
     return(aw.end-aw.start)-(bw.end-bw.start);
   });
 
   var breaks={},impossible=[];
 
-  // ── PASS 1: Schedule all room-assigned staff ───────────────────────────
-  assigned.forEach(function(s){
+  sorted.forEach(function(s){
     var w=effectiveWindow(s,day);
-    if(w.end-w.start<c.lunchDur+c.teaDur){impossible.push(s.name);return;}
+    var lDur=lunchDurFor(s,day);
+    var minNeeded=lDur+c.teaDur; // absolute min with no gap
+    if(w.end-w.start<minNeeded){impossible.push(s.name);return;}
     breaks[s.id]=findBestSlot(s.id,w.start,w.end,day,breaks);
-  });
-
-  // ── PASS 2: Schedule floaters in the gaps ─────────────────────────────
-  // Floaters cover rooms during assigned-staff breaks, so their own breaks
-  // should go in windows when coverage isn't needed.
-  var coverageGaps=getCoverageGaps(day,breaks);
-  floaters.forEach(function(s){
-    var w=effectiveWindow(s,day);
-    if(w.end-w.start<c.lunchDur+c.teaDur){impossible.push(s.name);return;}
-    breaks[s.id]=findFloaterSlot(s,w.start,w.end,coverageGaps);
   });
 
   S.breaks[day]=breaks;persist();renderTimeline();renderBreakInfo();
@@ -717,12 +805,12 @@ function autoSchedule(){
   var critEl=document.getElementById('crit-warn');
   if(impossible.length){
     critEl.style.display='block';
-    critEl.innerHTML='&#9888;&#65039; Could not schedule breaks for <strong>'+impossible.join(', ')+'</strong> &mdash; break window too short. Check Settings.';
-  } else {
+    critEl.innerHTML='&#9888;&#65039; Could not schedule breaks for <strong>'+impossible.join(', ')+'</strong> &mdash; shift too short for the break window. Check Settings.';
+  }else{
     critEl.style.display='none';
   }
 
-  // Remaining coverage issues go into notes
+  // Any coverage issues go into notes for manual review
   var covIssues=checkAllCoverage(day,breaks);
   if(covIssues.length){
     var ta=document.getElementById('notes-ta');
@@ -738,209 +826,150 @@ function findBestSlot(sid,earliest,latest,day,tentative){
   var s=S.staff.find(function(x){return x.id===sid;});
   var sc=s.schedule[day];
   var shiftStart=t2m(sc.start),shiftEnd=t2m(sc.end);
-  var lDur=c.lunchDur,tDur=c.teaDur;
-  var lLatest=latest-lDur;
+  var lDur=lunchDurFor(s,day);
+  var tDur=c.teaDur;
 
-  // ── LUNCH TARGET: midpoint of this person's shift, clamped to break window ─
-  // Early starters get earlier lunch, late starters get later lunch.
-  var shiftMid=Math.round((shiftStart+shiftEnd)/2/5)*5;
-  var lunchTarget=clamp(shiftMid,earliest,lLatest);
+  // Lunch: constrained to break window + edge buffer (earliest/latest already set)
+  // Hard cap: lunch must end by 1:30pm
+  var LUNCH_CAP=13*60+30;
+  var lLatest=Math.min(latest-lDur,LUNCH_CAP-lDur);
+  if(lLatest<earliest)lLatest=latest-lDur;
 
-  // Avoid overlapping a room-mate's lunch (room must always have someone present)
+  // Tea: ONLY shift edge buffer — no break window constraint
+  var tw=teaWindow(s,day);
+  var tEarliest=tw.start,tLatest=tw.end-tDur;
+
+  function overlaps(as,ae,bs,be){return as<be&&ae>bs;}
+
+  // Collect all colleague breaks (lunch + tea) as blocked intervals
   var rid=staffRoom(sid,day);
   var colleagues=rid?(S.assignments[day][rid]||[]).filter(function(id){return id!==sid;}):[];
-  var takenLunch=colleagues.map(function(id){return tentative[id]?tentative[id].lunch:null;}).filter(Boolean);
-
-  var bestLunch=null;
-  for(var off=0;off<=360;off+=5){
-    var tries=off===0?[lunchTarget]:[lunchTarget-off,lunchTarget+off];
-    for(var ti=0;ti<tries.length;ti++){
-      var ls=tries[ti];
-      if(ls<earliest||ls>lLatest)continue;
-      var le=ls+lDur;
-      if(!takenLunch.some(function(tl){return tl.start<le&&tl.end>ls;})){
-        bestLunch={start:ls,end:le};break;
-      }
-    }
-    if(bestLunch)break;
-  }
-  if(!bestLunch)bestLunch={start:earliest,end:earliest+lDur};
-
-  // ── TEA TARGET: midpoint of working stint, not the edge of the window ───────
-  // Before lunch: target = midpoint of [shiftStart, lunchStart]
-  // After lunch:  target = midpoint of [lunchEnd, shiftEnd]
-  // Pick whichever stint gives the bigger gap and lands inside the window.
-
-  // Helper: find closest valid tea position to a target within [tMin, tMaxStart]
-  function findTeaPos(tTarget,tMin,tMaxStart){
-    if(tMin>tMaxStart)return null;
-    tTarget=clamp(tTarget,tMin,tMaxStart);
-    for(var o=0;o<=300;o+=5){
-      var ops=o===0?[tTarget]:[tTarget-o,tTarget+o];
-      for(var j=0;j<ops.length;j++){
-        var ts=ops[j];
-        if(ts>=tMin&&ts<=tMaxStart)return{start:ts,end:ts+tDur};
-      }
-    }
-    return null;
-  }
-
-  // Tea BEFORE lunch — must end at least minGap before lunch starts
-  var teaBefore=null,gapBefore=-1;
-  if(bestLunch.start-earliest>=tDur+c.minGap){
-    var tBTarget=Math.round((shiftStart+bestLunch.start)/2/5)*5;
-    var tBMaxStart=bestLunch.start-c.minGap-tDur; // latest start so gap is met
-    var cand=findTeaPos(tBTarget,earliest,tBMaxStart);
-    if(cand){teaBefore=cand;gapBefore=bestLunch.start-cand.end;}
-  }
-
-  // Tea AFTER lunch — must start at least minGap after lunch ends
-  var teaAfter=null,gapAfter=-1;
-  if(latest-bestLunch.end>=tDur+c.minGap){
-    var tATarget=Math.round((bestLunch.end+shiftEnd)/2/5)*5;
-    var tAMinStart=bestLunch.end+c.minGap; // earliest start so gap is met
-    var cand2=findTeaPos(tATarget,tAMinStart,latest-tDur);
-    if(cand2){teaAfter=cand2;gapAfter=cand2.start-bestLunch.end;}
-  }
-
-  // Choose the option with the larger gap (more rest between breaks)
-  var bestTea=null;
-  if(teaBefore&&teaAfter){
-    bestTea=gapBefore>=gapAfter?teaBefore:teaAfter;
-  }else if(teaBefore){bestTea=teaBefore;}
-  else if(teaAfter){bestTea=teaAfter;}
-
-  // Fallback: relax minGap, pick whatever fits with biggest gap
-  if(!bestTea){
-    var best=-1;
-    for(var ts4=earliest;ts4+tDur<=bestLunch.start;ts4+=5){
-      var g4=bestLunch.start-(ts4+tDur);
-      if(g4>best){bestTea={start:ts4,end:ts4+tDur};best=g4;}
-    }
-    for(var ts5=latest-tDur;ts5>=bestLunch.end;ts5-=5){
-      var g5=ts5-bestLunch.end;
-      if(g5>best){bestTea={start:ts5,end:ts5+tDur};best=g5;}
-    }
-  }
-
-  // Last resort
-  if(!bestTea){
-    if(bestLunch.start-tDur>=earliest)bestTea={start:bestLunch.start-tDur,end:bestLunch.start};
-    else{var ts6=Math.min(bestLunch.end,latest-tDur);bestTea={start:ts6,end:ts6+tDur};}
-  }
-
-  var actualGap=bestLunch.start>bestTea.end?bestLunch.start-bestTea.end:bestTea.start-bestLunch.end;
-  return{lunch:bestLunch,tea:bestTea,gap:actualGap};
-}
-
-// Returns merged intervals where any room is below ratio due to breaks
-function getCoverageGaps(day,breaks){
-  var c=S.config,raw=[];
-  for(var t=c.winStart;t<c.winEnd;t+=5){
-    var needsCover=false;
-    S.rooms.forEach(function(room){
-      var roomStaff=S.assignments[day][room.id]||[];
-      var req=reqEd(room);
-      if(roomStaff.length<req)return;
-      var onBreak=0;
-      roomStaff.forEach(function(sid){
-        var brk=breaks[sid];if(!brk)return;
-        if((brk.lunch&&brk.lunch.start<=t&&brk.lunch.end>t)||(brk.tea&&brk.tea.start<=t&&brk.tea.end>t))onBreak++;
-      });
-      if(roomStaff.length-onBreak<req)needsCover=true;
-    });
-    if(needsCover)raw.push(t);
-  }
-  // Merge consecutive minutes into intervals
-  var merged=[],gStart=null,prev=null;
-  raw.forEach(function(t){
-    if(gStart===null){gStart=t;}
-    else if(t>prev+5){merged.push({start:gStart,end:prev+5});gStart=t;}
-    prev=t;
+  var blocked=[];
+  colleagues.forEach(function(id){
+    var rb=tentative[id];if(!rb)return;
+    blocked.push({start:rb.lunch.start,end:rb.lunch.end});
+    blocked.push({start:rb.tea.start,end:rb.tea.end});
   });
-  if(gStart!==null)merged.push({start:gStart,end:(prev||gStart)+5});
-  return merged;
-}
-
-// Schedule a floater's breaks preferring times NOT needed for room coverage
-function findFloaterSlot(s,earliest,latest,busyIntervals){
-  var c=S.config,lDur=c.lunchDur,tDur=c.teaDur;
-  var sc=s.schedule[S.day];
-  var shiftStart=t2m(sc.start),shiftEnd=t2m(sc.end);
-  var lLatest=latest-lDur;
-
-  function overlapsBusy(start,dur){
+  function isFree(start,dur){
     var end=start+dur;
-    return busyIntervals.some(function(b){return b.start<end&&b.end>start;});
+    return !blocked.some(function(b){return overlaps(start,end,b.start,b.end);});
   }
 
-  // Lunch target = shift midpoint, clamped to window
+  // ── STEP 1: LUNCH ─────────────────────────────────────────────────────────
+  // Target = midpoint of shift capped to lunch window
   var shiftMid=Math.round((shiftStart+shiftEnd)/2/5)*5;
   var lunchTarget=clamp(shiftMid,earliest,lLatest);
-
-  // Find best lunch not overlapping a busy (coverage needed) interval
   var bestLunch=null;
-  for(var off=0;off<=360;off+=5){
+  for(var off=0;off<=360&&!bestLunch;off+=5){
     var tries=off===0?[lunchTarget]:[lunchTarget-off,lunchTarget+off];
     for(var ti=0;ti<tries.length;ti++){
       var ls=tries[ti];
-      if(ls<earliest||ls>lLatest)continue;
-      if(!overlapsBusy(ls,lDur)){bestLunch={start:ls,end:ls+lDur};break;}
+      if(ls>=earliest&&ls<=lLatest&&isFree(ls,lDur)){bestLunch={start:ls,end:ls+lDur};break;}
     }
-    if(bestLunch)break;
   }
-  if(!bestLunch)bestLunch={start:clamp(lunchTarget,earliest,lLatest),end:clamp(lunchTarget,earliest,lLatest)+lDur};
+  if(!bestLunch){for(var ls2=earliest;ls2<=lLatest;ls2+=5){if(isFree(ls2,lDur)){bestLunch={start:ls2,end:ls2+lDur};break;}}}
+  if(!bestLunch)bestLunch={start:earliest,end:earliest+lDur};
 
-  // Tea target = midpoint of working stint, avoiding busy intervals
-  function findTeaPos(tTarget,tMin,tMaxStart){
-    if(tMin>tMaxStart)return null;
-    tTarget=clamp(tTarget,tMin,tMaxStart);
-    for(var o=0;o<=300;o+=5){
-      var ops=o===0?[tTarget]:[tTarget-o,tTarget+o];
-      for(var j=0;j<ops.length;j++){
-        var ts=ops[j];
-        if(ts>=tMin&&ts<=tMaxStart&&!overlapsBusy(ts,tDur))return{start:ts,end:ts+tDur};
+  // ── STEP 2: TEA ───────────────────────────────────────────────────────────
+  // Tea is INDEPENDENT of lunch — no forced gap, just can't overlap.
+  // Place in the longer working stint (before OR after lunch) based on
+  // actual shift hours, not break window.
+  // Tea window = full shift minus edge buffer — ignores break window entirely.
+  var preLen=bestLunch.start-shiftStart;
+  var postLen=shiftEnd-bestLunch.end;
+
+  // Pick the longer stint and target its midpoint
+  var teaTarget,teaMin,teaMax;
+  if(preLen>=postLen&&tEarliest<=bestLunch.start-tDur){
+    // Morning stint is longer — tea goes in the morning
+    teaTarget=Math.round((shiftStart+bestLunch.start)/2/5)*5;
+    teaMin=tEarliest;
+    teaMax=bestLunch.start-tDur;
+  }else if(bestLunch.end<=tLatest){
+    // Afternoon stint is longer (or morning too short) — tea goes in the afternoon
+    teaTarget=Math.round((bestLunch.end+shiftEnd)/2/5)*5;
+    teaMin=bestLunch.end;
+    teaMax=tLatest;
+  }else if(tEarliest<=bestLunch.start-tDur){
+    // Fallback: morning
+    teaTarget=Math.round((shiftStart+bestLunch.start)/2/5)*5;
+    teaMin=tEarliest;
+    teaMax=bestLunch.start-tDur;
+  }else{
+    teaTarget=tEarliest;teaMin=tEarliest;teaMax=tLatest;
+  }
+  teaTarget=clamp(teaTarget,teaMin,Math.max(teaMin,teaMax));
+
+  // Tea must not overlap lunch or any colleague break
+  var teaBlocked=blocked.slice();
+  teaBlocked.push({start:bestLunch.start,end:bestLunch.end});
+  function teaOk(ts){
+    var te=ts+tDur;
+    return ts>=teaMin&&ts<=teaMax&&!teaBlocked.some(function(b){return overlaps(ts,te,b.start,b.end);});
+  }
+  var bestTea=null;
+  for(var off2=0;off2<=360&&!bestTea;off2+=5){
+    var ops=off2===0?[teaTarget]:[teaTarget-off2,teaTarget+off2];
+    for(var oi=0;oi<ops.length;oi++){if(teaOk(ops[oi])){bestTea={start:ops[oi],end:ops[oi]+tDur};break;}}
+  }
+  // Scan fallback: try morning then afternoon
+  if(!bestTea){
+    for(var ts2=tEarliest;ts2<=tLatest&&!bestTea;ts2+=5){
+      if(!overlaps(ts2,ts2+tDur,bestLunch.start,bestLunch.end)&&isFree(ts2,tDur))bestTea={start:ts2,end:ts2+tDur};
+    }
+  }
+  if(!bestTea)bestTea={start:tEarliest,end:tEarliest+tDur};
+
+  // ── STEP 3: COVERAGE CHECK ────────────────────────────────────────────────
+  function roomOkWith(lSlot,tSlot){
+    if(!rid)return true;
+    var room=S.rooms.find(function(r){return r.id===rid;});if(!room)return true;
+    var req=reqEd(room),roomStaff=S.assignments[day][rid]||[];
+    if(roomStaff.length<=req)return true;
+    var slots=[lSlot,tSlot];
+    for(var si=0;si<slots.length;si++){
+      var bS=slots[si].start,bE=slots[si].end,present=0;
+      roomStaff.forEach(function(rsid){
+        if(rsid===sid)return;
+        var rb=tentative[rsid];if(!rb){present++;return;}
+        if(!overlaps(rb.lunch.start,rb.lunch.end,bS,bE)&&!overlaps(rb.tea.start,rb.tea.end,bS,bE))present++;
+      });
+      if(present<req)return false;
+    }
+    return true;
+  }
+
+  if(!roomOkWith(bestLunch,bestTea)){
+    outer:for(var loff=5;loff<=90;loff+=5){
+      var alts=[lunchTarget-loff,lunchTarget+loff];
+      for(var ai=0;ai<alts.length;ai++){
+        var als=alts[ai];
+        if(als<earliest||als>lLatest||!isFree(als,lDur))continue;
+        var al={start:als,end:als+lDur};
+        var preA=als-shiftStart,postA=shiftEnd-(als+lDur);
+        var atMin,atMax,atTgt;
+        if(preA>=postA&&tEarliest<=als-tDur){atMin=tEarliest;atMax=als-tDur;atTgt=Math.round((shiftStart+als)/2/5)*5;}
+        else if(als+lDur<=tLatest){atMin=als+lDur;atMax=tLatest;atTgt=Math.round((als+lDur+shiftEnd)/2/5)*5;}
+        else{atMin=tEarliest;atMax=als-tDur;atTgt=tEarliest;}
+        atTgt=clamp(atTgt,atMin,Math.max(atMin,atMax));
+        var altBlk=blocked.slice();altBlk.push({start:als,end:als+lDur});
+        var at=null;
+        for(var ao=0;ao<=180&&!at;ao+=5){
+          var aops=ao===0?[atTgt]:[atTgt-ao,atTgt+ao];
+          for(var aoi=0;aoi<aops.length;aoi++){
+            var ats=aops[aoi],ate=ats+tDur;
+            if(ats>=atMin&&ats<=atMax&&!altBlk.some(function(b){return overlaps(ats,ate,b.start,b.end);})){at={start:ats,end:ate};break;}
+          }
+        }
+        if(at&&roomOkWith(al,at)){bestLunch=al;bestTea=at;break outer;}
       }
     }
-    return null;
   }
 
-  // Tea before lunch
-  var teaBefore=null,gapBefore=-1;
-  if(bestLunch.start-earliest>=tDur+c.minGap){
-    var tBTarget=Math.round((shiftStart+bestLunch.start)/2/5)*5;
-    var cand=findTeaPos(tBTarget,earliest,bestLunch.start-c.minGap-tDur);
-    if(cand){teaBefore=cand;gapBefore=bestLunch.start-cand.end;}
-  }
-
-  // Tea after lunch
-  var teaAfter=null,gapAfter=-1;
-  if(latest-bestLunch.end>=tDur+c.minGap){
-    var tATarget=Math.round((bestLunch.end+shiftEnd)/2/5)*5;
-    var cand2=findTeaPos(tATarget,bestLunch.end+c.minGap,latest-tDur);
-    if(cand2){teaAfter=cand2;gapAfter=cand2.start-bestLunch.end;}
-  }
-
-  var bestTea=null;
-  if(teaBefore&&teaAfter){bestTea=gapBefore>=gapAfter?teaBefore:teaAfter;}
-  else if(teaBefore){bestTea=teaBefore;}
-  else if(teaAfter){bestTea=teaAfter;}
-
-  // Fallback: ignore busy, just maximise gap
-  if(!bestTea){
-    var best=-1;
-    for(var ts3=earliest;ts3+tDur<=bestLunch.start;ts3+=5){var g3=bestLunch.start-(ts3+tDur);if(g3>best){bestTea={start:ts3,end:ts3+tDur};best=g3;}}
-    for(var ts4=latest-tDur;ts4>=bestLunch.end;ts4-=5){var g4=ts4-bestLunch.end;if(g4>best){bestTea={start:ts4,end:ts4+tDur};best=g4;}}
-  }
-
-  if(!bestTea){
-    if(bestLunch.start-tDur>=earliest)bestTea={start:bestLunch.start-tDur,end:bestLunch.start};
-    else{var ts5=Math.min(bestLunch.end,latest-tDur);bestTea={start:ts5,end:ts5+tDur};}
-  }
-
-  var actualGap=bestLunch.start>bestTea.end?bestLunch.start-bestTea.end:bestTea.start-bestLunch.end;
-  return{lunch:bestLunch,tea:bestTea,gap:actualGap};
+  var gap=bestLunch.start>=bestTea.end?bestLunch.start-bestTea.end:bestTea.start-bestLunch.end;
+  return{lunch:bestLunch,tea:bestTea,gap:gap};
 }
+
 
 function checkAllCoverage(day,breaks){
   var issues=[];
@@ -1312,6 +1341,48 @@ function printSchedule(){
   win.document.close();
   win.focus();
   setTimeout(function(){win.print();},500);
+}
+
+/* ── EXPORT / IMPORT ─────────────────────────────────────────────────────── */
+function exportData(){
+  var payload=JSON.stringify(S,null,2);
+  var blob=new Blob([payload],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  var now=new Date();
+  var ds=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate());
+  a.href=url;a.download='breaktime-backup-'+ds+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+}
+
+function importData(event){
+  var file=event.target.files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var imported=JSON.parse(e.target.result);
+      if(!imported.rooms||!imported.staff){alert('Invalid backup file. Please choose a BreakTime export file.');return;}
+      if(!confirm('This will replace ALL current data with the imported backup. Continue?'))return;
+      S=imported;
+      if(!S.notes)S.notes={};
+      if(!S.config.shortShiftHours)S.config.shortShiftHours=6;
+      if(!S.config.shortLunchDur)S.config.shortLunchDur=30;
+      DAYS.forEach(function(d){
+        if(!S.assignments[d])S.assignments[d]={};
+        if(!S.breaks[d])S.breaks[d]={};
+        if(!S.notes[d])S.notes[d]='';
+      });
+      persist();
+      renderRooms();renderStaff();renderSchedule();
+      alert('Data imported successfully.');
+    }catch(err){
+      alert('Could not read the file. Make sure it is a valid BreakTime backup JSON file.');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value=''; // reset so same file can be re-imported
 }
 
 /* ── SEED DATA ───────────────────────────────────────────────────────────── */
